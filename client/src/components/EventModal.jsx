@@ -4,6 +4,7 @@ import { DURATION_OPTIONS } from '../constants';
 export function EventModal({
     currentUser,
     eventUser,
+    mode = 'create',
     eventDescription,
     setEventDescription,
     eventDate,
@@ -16,10 +17,12 @@ export function EventModal({
     onSubmit,
     onCancel,
 }) {
+    const isEditMode = mode === 'edit';
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-indigo-100">
-                <h3 className="text-2xl font-bold text-indigo-700">Add Event</h3>
+                <h3 className="text-2xl font-bold text-indigo-700">{isEditMode ? 'Edit Event' : 'Add Event'}</h3>
                 <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 text-sm text-slate-700 md:flex-row md:items-center">
                     <div className="flex-1">
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-500">My Name</p>
@@ -29,7 +32,6 @@ export function EventModal({
                     <div className="flex-1">
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-500">Selected User</p>
                         <p className="mt-1 font-bold text-slate-900">{eventUser.name}</p>
-                        <p className="text-xs text-slate-500">ID: {eventUser._id}</p>
                     </div>
                 </div>
                 {eventError && (
@@ -55,31 +57,37 @@ export function EventModal({
                             placeholder="Write event details..."
                         />
                     </div>
-                    <div>
-                        <label className="mb-2 block text-sm font-semibold text-indigo-700">Date</label>
-                        <input
-                            value={eventDate}
-                            onChange={(e) => setEventDate(e.target.value)}
-                            disabled={isEventSubmitting}
-                            type="date"
-                            className="w-full rounded-xl border border-indigo-200 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-gray-100 disabled:text-gray-500"
-                        />
-                    </div>
-                    <div>
-                        <label className="mb-2 block text-sm font-semibold text-indigo-700">Time Duration</label>
-                        <select
-                            value={eventDuration}
-                            onChange={(e) => setEventDuration(e.target.value)}
-                            disabled={isEventSubmitting}
-                            className="w-full rounded-xl border border-indigo-200 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-gray-100 disabled:text-gray-500"
-                        >
-                            <option value="">Select duration</option>
-                            {DURATION_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                    {option.label}
-                                </option>
-                            ))}
-                        </select>
+                    <hr className="border-indigo-200" />
+                    <div className="flex gap-4 items-end">
+                        <div className="flex-1">
+                            <label className="mb-2 block text-sm font-semibold text-indigo-700">Date</label>
+                            <input
+                                value={eventDate}
+                                onChange={(e) => setEventDate(e.target.value)}
+                                disabled={isEventSubmitting}
+                                type="date"
+                                className="w-full rounded-xl border border-indigo-200 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-gray-100 disabled:text-gray-500"
+                            />
+                        </div>
+                        <div className="flex items-center pb-2">
+                            <div className="h-12 w-px bg-indigo-200" />
+                        </div>
+                        <div className="flex-1">
+                            <label className="mb-2 block text-sm font-semibold text-indigo-700">Time Duration</label>
+                            <select
+                                value={eventDuration}
+                                onChange={(e) => setEventDuration(e.target.value)}
+                                disabled={isEventSubmitting}
+                                className="w-full rounded-xl border border-indigo-200 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-gray-100 disabled:text-gray-500"
+                            >
+                                <option value="">Select duration</option>
+                                {DURATION_OPTIONS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
                 </div>
                 <div className="mt-6 flex flex-wrap gap-2">
@@ -89,7 +97,7 @@ export function EventModal({
                         disabled={isEventSubmitting}
                         className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition disabled:cursor-not-allowed disabled:opacity-70"
                     >
-                        {isEventSubmitting ? 'Submitting...' : 'Submit'}
+                        {isEventSubmitting ? (isEditMode ? 'Updating...' : 'Submitting...') : (isEditMode ? 'Ok' : 'Submit')}
                     </button>
                     <button
                         type="button"

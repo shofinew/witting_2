@@ -8,6 +8,8 @@ import { UsersPage } from './pages/UsersPage';
 import { SearchPage } from './pages/SearchPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { StagePage } from './pages/StagePage';
+import { FeedbackPage } from './pages/FeedbackPage';
+import { UserProfilePage } from './pages/UserProfilePage';
 import { PAGE_TO_STATUS } from './constants';
 import { authAPI, userAPI, eventAPI } from './api';
 
@@ -36,7 +38,6 @@ function App() {
             return null;
         }
     });
-    const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
     const [users, setUsers] = useState([]);
     const [usersError, setUsersError] = useState('');
     const [isLoadingUsers, setIsLoadingUsers] = useState(false);
@@ -60,6 +61,7 @@ function App() {
         published: '',
     });
     const [eventUser, setEventUser] = useState(null);
+    const [editingEvent, setEditingEvent] = useState(null);
     const [eventDescription, setEventDescription] = useState('');
     const [eventDate, setEventDate] = useState('');
     const [eventDuration, setEventDuration] = useState('');
@@ -111,6 +113,11 @@ function App() {
         } finally {
             setEventsLoading((prev) => ({ ...prev, [status]: false }));
         }
+    };
+
+    const handleUserUpdate = (updatedUser) => {
+        setCurrentUser(updatedUser);
+        localStorage.setItem('wittingUser', JSON.stringify(updatedUser));
     };
 
     useEffect(() => {
@@ -203,6 +210,7 @@ function App() {
 
     const closeEventModal = () => {
         setEventUser(null);
+        setEditingEvent(null);
         setEventDescription('');
         setEventDate('');
         setEventDuration('');
@@ -213,7 +221,6 @@ function App() {
 
     const handleLogout = () => {
         setCurrentUser(null);
-        setIsUserMenuOpen(false);
         setLoginPassword('');
         setAuthSuccess('');
         setEventActionError('');
@@ -224,10 +231,21 @@ function App() {
     };
 
     const openEventModal = (user) => {
+        setEditingEvent(null);
         setEventUser(user);
         setEventDescription('');
         setEventDate('');
         setEventDuration('');
+        setEventError('');
+        setEventSuccess('');
+    };
+
+    const openEditEventModal = (event) => {
+        setEditingEvent(event);
+        setEventUser(event.targetId);
+        setEventDescription(event.description || '');
+        setEventDate(event.date ? new Date(event.date).toISOString().split('T')[0] : '');
+        setEventDuration(event.timeDuration ? String(event.timeDuration) : '');
         setEventError('');
         setEventSuccess('');
     };
@@ -267,6 +285,39 @@ function App() {
         }
     };
 
+    const handleEditEvent = async () => {
+        setEventError('');
+        setEventSuccess('');
+
+        if (!editingEvent?._id) {
+            setEventError('Event information is missing. Please try again.');
+            return;
+        }
+
+        if (!eventDescription.trim() || !eventDate || !eventDuration) {
+            setEventError('Description, date, and time duration are required.');
+            return;
+        }
+
+        try {
+            setIsEventSubmitting(true);
+            const updateResult = await eventAPI.update(
+                editingEvent._id,
+                eventDescription.trim(),
+                eventDate,
+                Number(eventDuration)
+            );
+            const advanceResult = await eventAPI.advance(editingEvent._id);
+            setEventActionSuccess(advanceResult.message || updateResult.message || 'Event updated successfully.');
+            closeEventModal();
+            await Promise.all(['stage3', 'stage2', 'stage1'].map((status) => fetchEventsByStatus(status)));
+        } catch (err) {
+            setEventError(err.message || 'Network error: could not update event.');
+        } finally {
+            setIsEventSubmitting(false);
+        }
+    };
+
     const handleAdvanceEvent = async (eventId) => {
         try {
             setActiveEventActionId(eventId);
@@ -292,6 +343,26 @@ function App() {
             await Promise.all(['stage1', 'published'].map((status) => fetchEventsByStatus(status)));
         } catch (err) {
             setEventActionError(err.message || 'Network error: could not publish event.');
+        } finally {
+            setActiveEventActionId('');
+        }
+    };
+
+    const handleDeleteEvent = async (eventId) => {
+        const shouldDelete = window.confirm('Are you sure you want to delete this event?');
+        if (!shouldDelete) {
+            return;
+        }
+
+        try {
+            setActiveEventActionId(eventId);
+            setEventActionError('');
+            setEventActionSuccess('');
+            const data = await eventAPI.remove(eventId);
+            setEventActionSuccess(data.message || 'Event deleted successfully.');
+            await Promise.all(['stage3', 'stage2', 'stage1'].map((status) => fetchEventsByStatus(status)));
+        } catch (err) {
+            setEventActionError(err.message || 'Network error: could not delete event.');
         } finally {
             setActiveEventActionId('');
         }
@@ -348,10 +419,6 @@ function App() {
             <div className="max-w-5xl mx-auto">
                 <Header
                     activePage={activePage}
-                    currentUser={currentUser}
-                    isUserMenuOpen={isUserMenuOpen}
-                    setIsUserMenuOpen={setIsUserMenuOpen}
-                    onLogout={handleLogout}
                     formattedDate={formattedDate}
                     formattedTime={formattedTime}
                     onClearMessages={clearMessages}
@@ -376,6 +443,7 @@ function App() {
                         }
                     />
                     <Route path="/users" element={<UsersPage users={users} isLoading={isLoadingUsers} error={usersError} onRefresh={fetchUsers} />} />
+                    <Route path="/users/:userId" element={<UserProfilePage />} />
                     <Route
                         path="/stage3"
                         element={
@@ -386,10 +454,13 @@ function App() {
                                 error={eventsError.stage3}
                                 actionError={eventActionError}
                                 actionSuccess={eventActionSuccess}
+                                currentUserId={currentUser._id}
                                 activeEventActionId={activeEventActionId}
                                 onRefresh={() => fetchEventsByStatus('stage3')}
                                 onAdvance={handleAdvanceEvent}
                                 onPublish={handlePublishEvent}
+                                onEdit={openEditEventModal}
+                                onDelete={handleDeleteEvent}
                             />
                         }
                     />
@@ -403,10 +474,13 @@ function App() {
                                 error={eventsError.stage2}
                                 actionError={eventActionError}
                                 actionSuccess={eventActionSuccess}
+                                currentUserId={currentUser._id}
                                 activeEventActionId={activeEventActionId}
                                 onRefresh={() => fetchEventsByStatus('stage2')}
                                 onAdvance={handleAdvanceEvent}
                                 onPublish={handlePublishEvent}
+                                onEdit={openEditEventModal}
+                                onDelete={handleDeleteEvent}
                             />
                         }
                     />
@@ -420,10 +494,13 @@ function App() {
                                 error={eventsError.stage1}
                                 actionError={eventActionError}
                                 actionSuccess={eventActionSuccess}
+                                currentUserId={currentUser._id}
                                 activeEventActionId={activeEventActionId}
                                 onRefresh={() => fetchEventsByStatus('stage1')}
                                 onAdvance={handleAdvanceEvent}
                                 onPublish={handlePublishEvent}
+                                onEdit={openEditEventModal}
+                                onDelete={handleDeleteEvent}
                             />
                         }
                     />
@@ -441,7 +518,8 @@ function App() {
                             />
                         }
                     />
-                    <Route path="/profile" element={<ProfilePage currentUser={currentUser} />} />
+                    <Route path="/profile" element={<ProfilePage currentUser={currentUser} onUserUpdate={handleUserUpdate} onLogout={handleLogout} />} />
+                    <Route path="/feedback" element={<FeedbackPage currentUser={currentUser} />} />
                     <Route path="*" element={<Navigate replace to="/home" />} />
                 </Routes>
             </div>
@@ -450,6 +528,7 @@ function App() {
                 <EventModal
                     currentUser={currentUser}
                     eventUser={eventUser}
+                    mode={editingEvent ? 'edit' : 'create'}
                     eventDescription={eventDescription}
                     setEventDescription={setEventDescription}
                     eventDate={eventDate}
@@ -459,7 +538,7 @@ function App() {
                     eventError={eventError}
                     eventSuccess={eventSuccess}
                     isEventSubmitting={isEventSubmitting}
-                    onSubmit={handleCreateEvent}
+                    onSubmit={editingEvent ? handleEditEvent : handleCreateEvent}
                     onCancel={closeEventModal}
                 />
             )}

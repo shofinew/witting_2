@@ -8,10 +8,13 @@ export function StagePage({
     error,
     actionError,
     actionSuccess,
+    currentUserId,
     activeEventActionId,
     onRefresh,
     onAdvance,
     onPublish,
+    onEdit,
+    onDelete,
 }) {
     return (
         <EventSection
@@ -21,10 +24,13 @@ export function StagePage({
             error={error}
             actionError={actionError}
             actionSuccess={actionSuccess}
+            currentUserId={currentUserId}
             activeEventActionId={activeEventActionId}
             onRefresh={onRefresh}
             onAdvance={onAdvance}
             onPublish={onPublish}
+            onEdit={onEdit}
+            onDelete={onDelete}
         />
     );
 }

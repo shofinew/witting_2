@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export function SearchPage({
     searchTerm,
@@ -9,6 +10,8 @@ export function SearchPage({
     onRefresh,
     onAddEvent,
 }) {
+    const navigate = useNavigate();
+
     return (
         <div className="w-full bg-white/95 p-8 rounded-3xl shadow-2xl border border-indigo-100 backdrop-blur-sm">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
@@ -47,7 +50,7 @@ export function SearchPage({
                         <thead>
                             <tr className="bg-indigo-50 text-indigo-700">
                                 <th className="p-3 font-semibold rounded-l-xl">Name</th>
-                                <th className="p-3 font-semibold">Email</th>
+                                <th className="p-3 font-semibold">Profession</th>
                                 <th className="p-3 font-semibold rounded-r-xl">Action</th>
                             </tr>
                         </thead>
@@ -55,15 +58,24 @@ export function SearchPage({
                             {filteredUsers.map((user) => (
                                 <tr key={user._id} className="border-b border-indigo-100">
                                     <td className="p-3 text-gray-800">{user.name}</td>
-                                    <td className="p-3 text-gray-700">{user.email}</td>
+                                    <td className="p-3 text-gray-700">{user.profession || 'Not provided'}</td>
                                     <td className="p-3">
-                                        <button
-                                            type="button"
-                                            onClick={() => onAddEvent(user)}
-                                            className="px-3 py-2 rounded-lg bg-fuchsia-600 text-white text-sm font-semibold hover:bg-fuchsia-700 transition"
-                                        >
-                                            Add Event
-                                        </button>
+                                        <div className="flex flex-wrap gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => navigate(`/users/${user._id}`)}
+                                                className="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition"
+                                            >
+                                                View
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => onAddEvent(user)}
+                                                className="px-3 py-2 rounded-lg bg-fuchsia-600 text-white text-sm font-semibold hover:bg-fuchsia-700 transition"
+                                            >
+                                                Add Event
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

@@ -27,8 +27,8 @@ const eventService = {
 
         await event.save();
         await event.populate([
-            { path: 'creatorId', select: 'name email' },
-            { path: 'targetId', select: 'name email' },
+            { path: 'creatorId', select: 'name profession' },
+            { path: 'targetId', select: 'name profession' },
         ]);
 
         return event;
@@ -48,12 +48,57 @@ const eventService = {
         }
 
         const events = await Event.find(query)
-            .populate('creatorId', 'name email')
-            .populate('targetId', 'name email')
+            .populate('creatorId', 'name profession')
+            .populate('targetId', 'name profession')
             .sort({ createdAt: -1 })
             .lean();
 
         return events;
+    },
+
+    // Update event details
+    updateEvent: async (eventId, updates) => {
+        const event = await Event.findById(eventId);
+        if (!event) {
+            const error = new Error('Event not found.');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        if (!['stage3', 'stage2'].includes(event.status)) {
+            const error = new Error('Only stage3 and stage2 events can be edited.');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        event.description = updates.description.trim();
+        event.date = new Date(updates.date);
+        event.timeDuration = updates.timeDuration;
+        await event.save();
+        await event.populate([
+            { path: 'creatorId', select: 'name profession' },
+            { path: 'targetId', select: 'name profession' },
+        ]);
+
+        return event;
+    },
+
+    // Delete event
+    deleteEvent: async (eventId) => {
+        const event = await Event.findById(eventId);
+        if (!event) {
+            const error = new Error('Event not found.');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        if (!['stage3', 'stage2'].includes(event.status)) {
+            const error = new Error('Only stage3 and stage2 events can be deleted.');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        await Event.findByIdAndDelete(eventId);
     },
 
     // Advance event to next stage
@@ -75,8 +120,8 @@ const eventService = {
         event.status = nextStatus;
         await event.save();
         await event.populate([
-            { path: 'creatorId', select: 'name email' },
-            { path: 'targetId', select: 'name email' },
+            { path: 'creatorId', select: 'name profession' },
+            { path: 'targetId', select: 'name profession' },
         ]);
 
         return event;
@@ -100,8 +145,8 @@ const eventService = {
         event.status = 'published';
         await event.save();
         await event.populate([
-            { path: 'creatorId', select: 'name email' },
-            { path: 'targetId', select: 'name email' },
+            { path: 'creatorId', select: 'name profession' },
+            { path: 'targetId', select: 'name profession' },
         ]);
 
         return event;

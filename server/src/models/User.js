@@ -17,6 +17,33 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    phone: {
+        type: String,
+        trim: true,
+    },
+    country: {
+        type: String,
+        trim: true,
+    },
+    dateOfBirth: {
+        type: Date,
+    },
+    specialistAt: {
+        type: String,
+        trim: true,
+    },
+    profession: {
+        type: String,
+        trim: true,
+    },
+    chamber: {
+        type: String,
+        trim: true,
+    },
+    memberSince: {
+        type: Date,
+        required: true,
+    },
 }, {
     timestamps: true,
 });

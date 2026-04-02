@@ -53,11 +53,41 @@ export const authAPI = {
 
         return data;
     },
+
+    updateProfile: async (userId, updates) => {
+        const response = await fetch(`${API_URL}/profile/${userId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates),
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            const error = new Error(data.message || 'Profile update failed');
+            error.statusCode = response.status;
+            throw error;
+        }
+
+        return data;
+    },
 };
 
 export const userAPI = {
     getAll: async () => {
         return authAPI.getAll();
+    },
+
+    getById: async (userId) => {
+        const response = await fetch(`${API_URL}/users/${userId}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+            const error = new Error(data.message || 'Failed to load user');
+            error.statusCode = response.status;
+            throw error;
+        }
+
+        return data;
     },
 };
 
@@ -96,6 +126,43 @@ export const eventAPI = {
 
         if (!response.ok) {
             const error = new Error(data.message || 'Failed to create event');
+            error.statusCode = response.status;
+            throw error;
+        }
+
+        return data;
+    },
+
+    update: async (eventId, description, date, timeDuration) => {
+        const response = await fetch(`${API_URL}/event/${eventId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                description,
+                date,
+                timeDuration,
+            }),
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            const error = new Error(data.message || 'Failed to update event');
+            error.statusCode = response.status;
+            throw error;
+        }
+
+        return data;
+    },
+
+    remove: async (eventId) => {
+        const response = await fetch(`${API_URL}/event/${eventId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            const error = new Error(data.message || 'Failed to delete event');
             error.statusCode = response.status;
             throw error;
         }

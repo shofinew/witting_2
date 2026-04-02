@@ -2,7 +2,7 @@ import React from 'react';
 import { STATUS_LABELS } from '../constants';
 import { EventCard } from './EventCard';
 
-export function EventSection({ status, events, isLoading, error, actionError, actionSuccess, activeEventActionId, onRefresh, onAdvance, onPublish }) {
+export function EventSection({ status, events, isLoading, error, actionError, actionSuccess, currentUserId, activeEventActionId, onRefresh, onAdvance, onPublish, onEdit, onDelete }) {
     const title = STATUS_LABELS[status];
     const isPublished = status === 'published';
 
@@ -40,9 +40,12 @@ export function EventSection({ status, events, isLoading, error, actionError, ac
                             key={event._id}
                             event={event}
                             isPublished={isPublished}
+                            currentUserId={currentUserId}
                             activeEventActionId={activeEventActionId}
                             onAdvance={onAdvance}
                             onPublish={onPublish}
+                            onEdit={onEdit}
+                            onDelete={onDelete}
                         />
                     ))}
                 </div>

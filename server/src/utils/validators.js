@@ -61,10 +61,27 @@ const validateCreateEventInput = (creatorId, targetId, description, date, timeDu
     return { valid: true, durationNumber };
 };
 
+const validateUpdateEventInput = (description, date, timeDuration, constraints) => {
+    if (!description || !date || !timeDuration) {
+        return { valid: false, message: 'description, date, and timeDuration are required.' };
+    }
+
+    const durationNumber = Number(timeDuration);
+    if (!Number.isInteger(durationNumber) || durationNumber < constraints.MIN || durationNumber > constraints.MAX) {
+        return {
+            valid: false,
+            message: `timeDuration must be a whole number between ${constraints.MIN} and ${constraints.MAX}.`,
+        };
+    }
+
+    return { valid: true, durationNumber };
+};
+
 module.exports = {
     isValidObjectId,
     isValidEmail,
     validateRegisterInput,
     validateLoginInput,
     validateCreateEventInput,
+    validateUpdateEventInput,
 };

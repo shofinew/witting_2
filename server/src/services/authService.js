@@ -17,10 +17,23 @@ const authService = {
             name: name.trim(),
             email: email.toLowerCase().trim(),
             password: hashedPassword,
+            memberSince: new Date(),
         });
 
         await user.save();
-        return user;
+        return {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            country: user.country,
+            dateOfBirth: user.dateOfBirth,
+            specialistAt: user.specialistAt,
+            profession: user.profession,
+            chamber: user.chamber,
+            createdAt: user.createdAt,
+            memberSince: user.memberSince,
+        };
     },
 
     // Login user
@@ -43,6 +56,14 @@ const authService = {
             _id: user._id,
             name: user.name,
             email: user.email,
+            phone: user.phone,
+            country: user.country,
+            dateOfBirth: user.dateOfBirth,
+            specialistAt: user.specialistAt,
+            profession: user.profession,
+            chamber: user.chamber,
+            createdAt: user.createdAt,
+            memberSince: user.memberSince,
         };
     },
 
@@ -50,6 +71,50 @@ const authService = {
     getAllUsers: async () => {
         const users = await User.find({}, '-password').sort({ createdAt: -1 }).lean();
         return users;
+    },
+
+    // Get single user
+    getUserById: async (userId) => {
+        const user = await User.findById(userId, '-password').lean();
+        if (!user) {
+            const error = new Error('User not found.');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        return user;
+    },
+
+    // Update user profile
+    updateProfile: async (userId, updates) => {
+        const allowedFields = ['phone', 'country', 'dateOfBirth', 'specialistAt', 'profession', 'chamber'];
+        const filteredUpdates = {};
+
+        for (const field of allowedFields) {
+            if (updates[field] !== undefined) {
+                filteredUpdates[field] = updates[field];
+            }
+        }
+
+        const user = await User.findByIdAndUpdate(userId, filteredUpdates, { new: true, runValidators: true });
+        if (!user) {
+            const error = new Error('User not found.');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        return {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            phone: user.phone,
+            country: user.country,
+            dateOfBirth: user.dateOfBirth,
+            specialistAt: user.specialistAt,
+            profession: user.profession,
+            chamber: user.chamber,
+            createdAt: user.createdAt,
+        };
     },
 };
 

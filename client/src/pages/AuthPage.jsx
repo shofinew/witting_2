@@ -46,8 +46,8 @@ export function AuthPage({
                             setAuthSuccess('');
                         }}
                         className={`px-4 py-2 rounded-xl font-semibold transition ${authView === 'login'
-                                ? 'bg-white text-indigo-700 shadow-lg'
-                                : 'bg-indigo-100/70 text-indigo-600 hover:bg-indigo-200/80'
+                            ? 'bg-white text-indigo-700 shadow-lg'
+                            : 'bg-indigo-100/70 text-indigo-600 hover:bg-indigo-200/80'
                             }`}
                     >
                         Login
@@ -60,8 +60,8 @@ export function AuthPage({
                             setAuthSuccess('');
                         }}
                         className={`px-4 py-2 rounded-xl font-semibold transition ${authView === 'register'
-                                ? 'bg-white text-indigo-700 shadow-lg'
-                                : 'bg-indigo-100/70 text-indigo-600 hover:bg-indigo-200/80'
+                            ? 'bg-white text-indigo-700 shadow-lg'
+                            : 'bg-indigo-100/70 text-indigo-600 hover:bg-indigo-200/80'
                             }`}
                     >
                         Register
