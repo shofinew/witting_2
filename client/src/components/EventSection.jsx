@@ -13,6 +13,7 @@ export function EventSection({ status, events, isLoading, error, actionError, ac
                     <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-fuchsia-600">{title}</h2>
                     <p className="mt-1 text-gray-600">
                         {isPublished ? 'Published events live here.' : `Events currently waiting in ${title}.`}
+                        {!isLoading && <span className="ml-2 font-semibold text-indigo-600">({events.length} events)</span>}
                     </p>
                 </div>
                 <button

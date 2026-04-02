@@ -62,8 +62,13 @@ export const userAPI = {
 };
 
 export const eventAPI = {
-    getByStatus: async (status) => {
-        const response = await fetch(`${API_URL}/events?status=${status}`);
+    getByStatus: async (status, userId) => {
+        const params = new URLSearchParams({ status });
+        if (userId) {
+            params.set('userId', userId);
+        }
+
+        const response = await fetch(`${API_URL}/events?${params.toString()}`);
         const data = await response.json();
 
         if (!response.ok) {

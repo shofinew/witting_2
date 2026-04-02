@@ -1,5 +1,5 @@
-
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AuthPage } from './pages/AuthPage';
 import { Header } from './components/Header';
 import { EventModal } from './components/EventModal';
@@ -12,7 +12,11 @@ import { PAGE_TO_STATUS } from './constants';
 import { authAPI, userAPI, eventAPI } from './api';
 
 function App() {
-    const [activePage, setActivePage] = useState('users');
+    const location = useLocation();
+    const navigate = useNavigate();
+    const path = location.pathname.replace(/^\//, '');
+    const activePage = path === '' ? 'home' : path;
+
     const [now, setNow] = useState(() => new Date());
     const [authView, setAuthView] = useState('login');
     const [registerName, setRegisterName] = useState('');
@@ -66,7 +70,6 @@ function App() {
     const [eventActionSuccess, setEventActionSuccess] = useState('');
     const [activeEventActionId, setActiveEventActionId] = useState('');
 
-    // Local storage effect
     useEffect(() => {
         if (!currentUser) {
             return;
@@ -74,15 +77,11 @@ function App() {
         localStorage.setItem('wittingUser', JSON.stringify(currentUser));
     }, [currentUser]);
 
-    // Clock effect
     useEffect(() => {
-        const timer = window.setInterval(() => {
-            setNow(new Date());
-        }, 1000);
+        const timer = window.setInterval(() => setNow(new Date()), 1000);
         return () => window.clearInterval(timer);
     }, []);
 
-    // Fetch users
     const fetchUsers = async () => {
         try {
             setUsersError('');
@@ -96,12 +95,16 @@ function App() {
         }
     };
 
-    // Fetch events by status
     const fetchEventsByStatus = async (status) => {
+        if (!currentUser || !currentUser._id) {
+            setEventsByStatus((prev) => ({ ...prev, [status]: [] }));
+            return;
+        }
+
         try {
             setEventsError((prev) => ({ ...prev, [status]: '' }));
             setEventsLoading((prev) => ({ ...prev, [status]: true }));
-            const data = await eventAPI.getByStatus(status);
+            const data = await eventAPI.getByStatus(status, currentUser._id);
             setEventsByStatus((prev) => ({ ...prev, [status]: data.events || [] }));
         } catch (err) {
             setEventsError((prev) => ({ ...prev, [status]: err.message || 'Network error: could not load events.' }));
@@ -110,7 +113,6 @@ function App() {
         }
     };
 
-    // Load data when active page changes
     useEffect(() => {
         if (!currentUser) {
             return;
@@ -126,7 +128,6 @@ function App() {
         }
     }, [activePage, currentUser]);
 
-    // Filter users based on search term
     const normalizedSearch = searchTerm.trim().toLowerCase();
     const filteredUsers = useMemo(
         () =>
@@ -139,7 +140,6 @@ function App() {
         [normalizedSearch, users]
     );
 
-    // Handle registration
     const handleRegister = async (e) => {
         e.preventDefault();
         setAuthError('');
@@ -177,7 +177,6 @@ function App() {
         }
     };
 
-    // Handle login
     const handleLogin = async (e) => {
         e.preventDefault();
         setAuthError('');
@@ -194,7 +193,7 @@ function App() {
             setCurrentUser(data.user);
             setLoginPassword('');
             setAuthSuccess(data.message || 'Login successful');
-            setActivePage('users');
+            navigate('/users');
         } catch (err) {
             setAuthError(err.message || 'Network error: please try again.');
         } finally {
@@ -202,7 +201,6 @@ function App() {
         }
     };
 
-    // Close event modal
     const closeEventModal = () => {
         setEventUser(null);
         setEventDescription('');
@@ -213,7 +211,6 @@ function App() {
         setIsEventSubmitting(false);
     };
 
-    // Handle logout
     const handleLogout = () => {
         setCurrentUser(null);
         setIsUserMenuOpen(false);
@@ -223,9 +220,9 @@ function App() {
         setEventActionSuccess('');
         localStorage.removeItem('wittingUser');
         closeEventModal();
+        navigate('/');
     };
 
-    // Open event modal
     const openEventModal = (user) => {
         setEventUser(user);
         setEventDescription('');
@@ -235,7 +232,6 @@ function App() {
         setEventSuccess('');
     };
 
-    // Create event
     const handleCreateEvent = async () => {
         setEventError('');
         setEventSuccess('');
@@ -263,7 +259,7 @@ function App() {
             await fetchEventsByStatus('stage3');
             closeEventModal();
             setEventActionSuccess(data.message || 'Event created successfully.');
-            setActivePage('stage3');
+            navigate('/stage3');
         } catch (err) {
             setEventError(err.message || 'Network error: could not create event.');
         } finally {
@@ -271,7 +267,6 @@ function App() {
         }
     };
 
-    // Advance event
     const handleAdvanceEvent = async (eventId) => {
         try {
             setActiveEventActionId(eventId);
@@ -287,7 +282,6 @@ function App() {
         }
     };
 
-    // Publish event
     const handlePublishEvent = async (eventId) => {
         try {
             setActiveEventActionId(eventId);
@@ -303,7 +297,6 @@ function App() {
         }
     };
 
-    // Format date and time
     const formattedDate = now.toLocaleDateString(undefined, {
         weekday: 'long',
         year: 'numeric',
@@ -317,13 +310,11 @@ function App() {
         second: '2-digit',
     });
 
-    // Clear messages helper
     const clearMessages = () => {
         setEventActionError('');
         setEventActionSuccess('');
     };
 
-    // Show auth page if not logged in
     if (!currentUser) {
         return (
             <AuthPage
@@ -352,13 +343,11 @@ function App() {
         );
     }
 
-    // Main app layout
     return (
         <div className="min-h-screen bg-gradient-to-br from-fuchsia-200 via-sky-100 to-cyan-100 p-6">
             <div className="max-w-5xl mx-auto">
                 <Header
                     activePage={activePage}
-                    setActivePage={setActivePage}
                     currentUser={currentUser}
                     isUserMenuOpen={isUserMenuOpen}
                     setIsUserMenuOpen={setIsUserMenuOpen}
@@ -368,91 +357,93 @@ function App() {
                     onClearMessages={clearMessages}
                 />
 
-                {activePage === 'home' && (
-                    <HomePage
-                        events={eventsByStatus.published}
-                        isLoading={eventsLoading.published}
-                        error={eventsError.published}
-                        actionError={eventActionError}
-                        actionSuccess={eventActionSuccess}
-                        activeEventActionId={activeEventActionId}
-                        onRefresh={() => fetchEventsByStatus('published')}
-                        onAdvance={handleAdvanceEvent}
-                        onPublish={handlePublishEvent}
+                <Routes>
+                    <Route path="/" element={<Navigate replace to="/home" />} />
+                    <Route
+                        path="/home"
+                        element={
+                            <HomePage
+                                events={eventsByStatus.published}
+                                isLoading={eventsLoading.published}
+                                error={eventsError.published}
+                                actionError={eventActionError}
+                                actionSuccess={eventActionSuccess}
+                                activeEventActionId={activeEventActionId}
+                                onRefresh={() => fetchEventsByStatus('published')}
+                                onAdvance={handleAdvanceEvent}
+                                onPublish={handlePublishEvent}
+                            />
+                        }
                     />
-                )}
-
-                {activePage === 'users' && (
-                    <UsersPage
-                        users={users}
-                        isLoading={isLoadingUsers}
-                        error={usersError}
-                        onRefresh={fetchUsers}
+                    <Route path="/users" element={<UsersPage users={users} isLoading={isLoadingUsers} error={usersError} onRefresh={fetchUsers} />} />
+                    <Route
+                        path="/stage3"
+                        element={
+                            <StagePage
+                                stage="stage3"
+                                events={eventsByStatus.stage3}
+                                isLoading={eventsLoading.stage3}
+                                error={eventsError.stage3}
+                                actionError={eventActionError}
+                                actionSuccess={eventActionSuccess}
+                                activeEventActionId={activeEventActionId}
+                                onRefresh={() => fetchEventsByStatus('stage3')}
+                                onAdvance={handleAdvanceEvent}
+                                onPublish={handlePublishEvent}
+                            />
+                        }
                     />
-                )}
-
-                {activePage === 'stage3' && (
-                    <StagePage
-                        stage="stage3"
-                        events={eventsByStatus.stage3}
-                        isLoading={eventsLoading.stage3}
-                        error={eventsError.stage3}
-                        actionError={eventActionError}
-                        actionSuccess={eventActionSuccess}
-                        activeEventActionId={activeEventActionId}
-                        onRefresh={() => fetchEventsByStatus('stage3')}
-                        onAdvance={handleAdvanceEvent}
-                        onPublish={handlePublishEvent}
+                    <Route
+                        path="/stage2"
+                        element={
+                            <StagePage
+                                stage="stage2"
+                                events={eventsByStatus.stage2}
+                                isLoading={eventsLoading.stage2}
+                                error={eventsError.stage2}
+                                actionError={eventActionError}
+                                actionSuccess={eventActionSuccess}
+                                activeEventActionId={activeEventActionId}
+                                onRefresh={() => fetchEventsByStatus('stage2')}
+                                onAdvance={handleAdvanceEvent}
+                                onPublish={handlePublishEvent}
+                            />
+                        }
                     />
-                )}
-
-                {activePage === 'stage2' && (
-                    <StagePage
-                        stage="stage2"
-                        events={eventsByStatus.stage2}
-                        isLoading={eventsLoading.stage2}
-                        error={eventsError.stage2}
-                        actionError={eventActionError}
-                        actionSuccess={eventActionSuccess}
-                        activeEventActionId={activeEventActionId}
-                        onRefresh={() => fetchEventsByStatus('stage2')}
-                        onAdvance={handleAdvanceEvent}
-                        onPublish={handlePublishEvent}
+                    <Route
+                        path="/stage1"
+                        element={
+                            <StagePage
+                                stage="stage1"
+                                events={eventsByStatus.stage1}
+                                isLoading={eventsLoading.stage1}
+                                error={eventsError.stage1}
+                                actionError={eventActionError}
+                                actionSuccess={eventActionSuccess}
+                                activeEventActionId={activeEventActionId}
+                                onRefresh={() => fetchEventsByStatus('stage1')}
+                                onAdvance={handleAdvanceEvent}
+                                onPublish={handlePublishEvent}
+                            />
+                        }
                     />
-                )}
-
-                {activePage === 'stage1' && (
-                    <StagePage
-                        stage="stage1"
-                        events={eventsByStatus.stage1}
-                        isLoading={eventsLoading.stage1}
-                        error={eventsError.stage1}
-                        actionError={eventActionError}
-                        actionSuccess={eventActionSuccess}
-                        activeEventActionId={activeEventActionId}
-                        onRefresh={() => fetchEventsByStatus('stage1')}
-                        onAdvance={handleAdvanceEvent}
-                        onPublish={handlePublishEvent}
+                    <Route
+                        path="/search"
+                        element={
+                            <SearchPage
+                                searchTerm={searchTerm}
+                                setSearchTerm={setSearchTerm}
+                                filteredUsers={filteredUsers}
+                                isLoading={isLoadingUsers}
+                                error={usersError}
+                                onRefresh={fetchUsers}
+                                onAddEvent={openEventModal}
+                            />
+                        }
                     />
-                )}
-
-                {activePage === 'search' && (
-                    <SearchPage
-                        searchTerm={searchTerm}
-                        setSearchTerm={setSearchTerm}
-                        filteredUsers={filteredUsers}
-                        isLoading={isLoadingUsers}
-                        error={usersError}
-                        onRefresh={fetchUsers}
-                        onAddEvent={openEventModal}
-                    />
-                )}
-
-                {activePage === 'profile' && (
-                    <ProfilePage
-                        currentUser={currentUser}
-                    />
-                )}
+                    <Route path="/profile" element={<ProfilePage currentUser={currentUser} />} />
+                    <Route path="*" element={<Navigate replace to="/home" />} />
+                </Routes>
             </div>
 
             {eventUser && (

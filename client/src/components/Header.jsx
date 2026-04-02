@@ -1,9 +1,9 @@
 import React, { useRef, useEffect } from 'react';
+import { NavLink } from 'react-router-dom';
 import { NAV_ITEMS } from '../constants';
 
 export function Header({
     activePage,
-    setActivePage,
     currentUser,
     isUserMenuOpen,
     setIsUserMenuOpen,
@@ -38,7 +38,7 @@ export function Header({
                 </div>
 
                 <div className="text-left md:text-right">
-                    <p className="text-base font-bold text-emerald-950">
+                    <p className="text-base font-medium text-slate-800">
                         {formattedDate} | {formattedTime}
                     </p>
                 </div>
@@ -47,22 +47,22 @@ export function Header({
             <div className="mb-6 overflow-visible rounded-3xl border border-white/60 bg-white/80 shadow-2xl backdrop-blur-md">
                 <div className="flex flex-col gap-4 border-b border-slate-200/80 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex flex-wrap items-center gap-3">
-                        {NAV_ITEMS.map((item) => (
-                            <button
-                                key={item.id}
-                                type="button"
-                                onClick={() => {
-                                    setActivePage(item.id);
-                                    onClearMessages();
-                                }}
-                                className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${activePage === item.id
+                        {NAV_ITEMS.map((item) => {
+                            const isActive = activePage === item.id;
+                            return (
+                                <NavLink
+                                    key={item.id}
+                                    to={`/${item.id}`}
+                                    onClick={onClearMessages}
+                                    className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${isActive
                                         ? 'bg-gradient-to-r from-fuchsia-500 to-cyan-500 text-white shadow-lg'
                                         : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                                    }`}
-                            >
-                                {item.label}
-                            </button>
-                        ))}
+                                        }`}
+                                >
+                                    {item.label}
+                                </NavLink>
+                            );
+                        })}
                     </div>
 
                     <div className="relative self-start lg:self-auto" ref={userMenuRef}>

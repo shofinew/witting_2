@@ -42,10 +42,10 @@ const createEvent = asyncHandler(async (req, res) => {
 
 // Get Events by Status Controller
 const getEventsByStatus = asyncHandler(async (req, res) => {
-    const { status } = req.query;
+    const { status, userId } = req.query;
 
     try {
-        const events = await eventService.getEventsByStatus(status);
+        const events = await eventService.getEventsByStatus(status, userId);
         return res.status(200).json({ events });
     } catch (error) {
         const statusCode = error.statusCode || 500;

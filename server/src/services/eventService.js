@@ -34,15 +34,20 @@ const eventService = {
         return event;
     },
 
-    // Get events by status
-    getEventsByStatus: async (status) => {
+    // Get events by status (optionally filtered by userId - shows events where user is creator or target)
+    getEventsByStatus: async (status, userId) => {
         if (!VALID_STATUSES.includes(status)) {
             const error = new Error('A valid status query is required.');
             error.statusCode = 400;
             throw error;
         }
 
-        const events = await Event.find({ status })
+        const query = { status };
+        if (userId) {
+            query.$or = [{ creatorId: userId }, { targetId: userId }];
+        }
+
+        const events = await Event.find(query)
             .populate('creatorId', 'name email')
             .populate('targetId', 'name email')
             .sort({ createdAt: -1 })
