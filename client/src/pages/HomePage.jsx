@@ -1,0 +1,29 @@
+import React from 'react';
+import { EventSection } from '../components/EventSection';
+
+export function HomePage({
+    events,
+    isLoading,
+    error,
+    actionError,
+    actionSuccess,
+    activeEventActionId,
+    onRefresh,
+    onAdvance,
+    onPublish,
+}) {
+    return (
+        <EventSection
+            status="published"
+            events={events}
+            isLoading={isLoading}
+            error={error}
+            actionError={actionError}
+            actionSuccess={actionSuccess}
+            activeEventActionId={activeEventActionId}
+            onRefresh={onRefresh}
+            onAdvance={onAdvance}
+            onPublish={onPublish}
+        />
+    );
+}
