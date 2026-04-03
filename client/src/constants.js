@@ -3,6 +3,8 @@ export const API_URL = import.meta.env.VITE_API_URL || '/api';
 export const NAV_ITEMS = [
     { id: 'users', label: 'All Users' },
     { id: 'home', label: 'Home' },
+    { id: 'public-event', label: 'Public Event' },
+    { id: 'family', label: 'Family' },
     { id: 'stage1', label: 'Stage1' },
     { id: 'stage2', label: 'Stage2' },
     { id: 'stage3', label: 'Stage3' },

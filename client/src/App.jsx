@@ -242,7 +242,7 @@ function App() {
 
     const openEditEventModal = (event) => {
         setEditingEvent(event);
-        setEventUser(event.targetId);
+        setEventUser(event.target);
         setEventDescription(event.description || '');
         setEventDate(event.date ? new Date(event.date).toISOString().split('T')[0] : '');
         setEventDuration(event.timeDuration ? String(event.timeDuration) : '');
@@ -442,6 +442,24 @@ function App() {
                             />
                         }
                     />
+                    <Route
+                        path="/public-event"
+                        element={
+                            <div className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-xl">
+                                <h2 className="text-xl font-bold text-slate-900">Public Event</h2>
+                                <p className="mt-2 text-slate-600">This page is currently empty.</p>
+                            </div>
+                        }
+                    />
+                    <Route
+                        path="/family"
+                        element={
+                            <div className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-xl">
+                                <h2 className="text-xl font-bold text-slate-900">Family</h2>
+                                <p className="mt-2 text-slate-600">This page is currently empty.</p>
+                            </div>
+                        }
+                    />
                     <Route path="/users" element={<UsersPage users={users} isLoading={isLoadingUsers} error={usersError} onRefresh={fetchUsers} />} />
                     <Route path="/users/:userId" element={<UserProfilePage />} />
                     <Route
@@ -527,6 +545,7 @@ function App() {
             {eventUser && (
                 <EventModal
                     currentUser={currentUser}
+                    creatorUser={editingEvent?.creator || editingEvent?.creatorId || null}
                     eventUser={eventUser}
                     mode={editingEvent ? 'edit' : 'create'}
                     eventDescription={eventDescription}

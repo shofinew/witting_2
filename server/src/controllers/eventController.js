@@ -10,6 +10,8 @@ const formatEventResponse = (event) => {
         _id: e._id,
         creatorId: e.creatorId,
         targetId: e.targetId,
+        creator: e.creatorId,
+        target: e.targetId,
         description: e.description,
         date: e.date,
         timeDuration: e.timeDuration,
@@ -21,12 +23,14 @@ const formatEventResponse = (event) => {
 
 // Create Event Controller
 const createEvent = asyncHandler(async (req, res) => {
-    const { creatorId, targetId, description, date, timeDuration } = req.body;
+    const { creator, target, creatorId, targetId, description, date, timeDuration } = req.body;
+    const creatorUserId = creator || creatorId;
+    const targetUserId = target || targetId;
 
     try {
         const validation = validateCreateEventInput(
-            creatorId,
-            targetId,
+            creatorUserId,
+            targetUserId,
             description,
             date,
             timeDuration,
@@ -38,8 +42,8 @@ const createEvent = asyncHandler(async (req, res) => {
         }
 
         const event = await eventService.createEvent(
-            creatorId,
-            targetId,
+            creatorUserId,
+            targetUserId,
             description,
             date,
             validation.durationNumber

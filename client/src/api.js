@@ -110,13 +110,13 @@ export const eventAPI = {
         return data;
     },
 
-    create: async (creatorId, targetId, description, date, timeDuration) => {
+    create: async (creator, target, description, date, timeDuration) => {
         const response = await fetch(`${API_URL}/event/add`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                creatorId,
-                targetId,
+                creator,
+                target,
                 description,
                 date,
                 timeDuration,

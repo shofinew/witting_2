@@ -41,13 +41,13 @@ const validateLoginInput = (email, password) => {
     return { valid: true };
 };
 
-const validateCreateEventInput = (creatorId, targetId, description, date, timeDuration, constraints) => {
-    if (!creatorId || !targetId || !description || !date || !timeDuration) {
-        return { valid: false, message: 'creatorId, targetId, description, date, and timeDuration are required.' };
+const validateCreateEventInput = (creator, target, description, date, timeDuration, constraints) => {
+    if (!creator || !target || !description || !date || !timeDuration) {
+        return { valid: false, message: 'creator, target, description, date, and timeDuration are required.' };
     }
 
-    if (!isValidObjectId(creatorId) || !isValidObjectId(targetId)) {
-        return { valid: false, message: 'Invalid creatorId or targetId.' };
+    if (!isValidObjectId(creator) || !isValidObjectId(target)) {
+        return { valid: false, message: 'Invalid creator or target.' };
     }
 
     const durationNumber = Number(timeDuration);

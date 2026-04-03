@@ -3,6 +3,7 @@ import { DURATION_OPTIONS } from '../constants';
 
 export function EventModal({
     currentUser,
+    creatorUser,
     eventUser,
     mode = 'create',
     eventDescription,
@@ -18,6 +19,7 @@ export function EventModal({
     onCancel,
 }) {
     const isEditMode = mode === 'edit';
+    const displayCreator = isEditMode ? creatorUser || currentUser : currentUser;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -25,12 +27,12 @@ export function EventModal({
                 <h3 className="text-2xl font-bold text-indigo-700">{isEditMode ? 'Edit Event' : 'Add Event'}</h3>
                 <div className="mt-3 flex flex-col gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 text-sm text-slate-700 md:flex-row md:items-center">
                     <div className="flex-1">
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-500">My Name</p>
-                        <p className="mt-1 font-bold text-slate-900">{currentUser.name}</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-500">Creator</p>
+                        <p className="mt-1 font-bold text-slate-900">{displayCreator?.name || 'Unknown user'}</p>
                     </div>
                     <div className="hidden h-12 w-px bg-indigo-200 md:block" />
                     <div className="flex-1">
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-500">Selected User</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-500">Target</p>
                         <p className="mt-1 font-bold text-slate-900">{eventUser.name}</p>
                     </div>
                 </div>
