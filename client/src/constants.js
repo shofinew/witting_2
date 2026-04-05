@@ -32,4 +32,5 @@ export const STATUS_LABELS = {
     stage2: 'Stage2',
     stage1: 'Stage1',
     published: 'Published',
+    archived: 'Archived',
 };

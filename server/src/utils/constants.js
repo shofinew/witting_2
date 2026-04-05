@@ -3,7 +3,7 @@ const STATUS_ORDER = {
     stage2: 'stage1',
 };
 
-const VALID_STATUSES = ['stage3', 'stage2', 'stage1', 'published'];
+const VALID_STATUSES = ['stage3', 'stage2', 'stage1', 'published', 'archived'];
 
 const DEFAULT_STATUS = 'stage3';
 

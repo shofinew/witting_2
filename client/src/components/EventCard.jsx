@@ -1,11 +1,46 @@
 import React from 'react';
 import { STATUS_LABELS } from '../constants';
 
-export function EventCard({ event, isPublished, currentUserId, activeEventActionId, onAdvance, onPublish, onEdit, onDelete }) {
-    const isStage3TargetUser = event.status === 'stage3' && event.target?._id === currentUserId;
-    const isStage2CreatorUser = event.status === 'stage2' && event.creator?._id === currentUserId;
+const formatRemainingTime = (seconds) => {
+    const safeSeconds = Math.max(0, seconds);
+    const minutes = Math.floor(safeSeconds / 60);
+    const remaining = safeSeconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(remaining).padStart(2, '0')}`;
+};
+
+export function EventCard({
+    event,
+    now,
+    isPublished,
+    currentUserId,
+    activeEventActionId,
+    activeEventActionType,
+    onAdvance,
+    onPublish,
+    onEdit,
+    onDelete,
+    onArchive,
+    onStart,
+}) {
+    const targetUserId = event.target?._id || event.targetId?._id || event.targetId;
+    const creatorUserId = event.creator?._id || event.creatorId?._id || event.creatorId;
+    const isStage3TargetUser = event.status === 'stage3' && targetUserId === currentUserId;
+    const isStage2CreatorUser = event.status === 'stage2' && creatorUserId === currentUserId;
+    const isStage1TargetUser = event.status === 'stage1' && targetUserId === currentUserId;
+    const canArchivePublishedEvent = isPublished && (creatorUserId === currentUserId || targetUserId === currentUserId);
+    const canStartPublishedEvent = isPublished && creatorUserId === currentUserId;
     const canManageStage3 = event.status === 'stage3' && isStage3TargetUser;
     const canManageStage2 = event.status === 'stage2' && isStage2CreatorUser;
+    const isEventActionActive = activeEventActionId === event._id;
+    const isDeleting = isEventActionActive && activeEventActionType === 'delete';
+    const isPublishing = isEventActionActive && activeEventActionType === 'publish';
+    const isArchiving = isEventActionActive && activeEventActionType === 'archive';
+    const isStarting = isEventActionActive && activeEventActionType === 'start';
+    const baseSeconds = typeof event.remainingSeconds === 'number' ? event.remainingSeconds : event.timeDuration * 60;
+    const elapsedSeconds = event.timerStartedAt ? Math.floor((now.getTime() - new Date(event.timerStartedAt).getTime()) / 1000) : 0;
+    const remainingSeconds = Math.max(0, baseSeconds - Math.max(0, elapsedSeconds));
+    const isTimerRunning = Boolean(event.timerStartedAt) && remainingSeconds > 0;
+    const isTimerFinished = remainingSeconds <= 0;
 
     return (
         <div className="rounded-2xl border border-indigo-100 bg-gradient-to-r from-white to-indigo-50 p-5 shadow-sm">
@@ -38,54 +73,86 @@ export function EventCard({ event, isPublished, currentUserId, activeEventAction
                     <div className="flex flex-wrap gap-4 text-sm font-medium text-slate-700 items-center">
                         <span>Date: {new Date(event.date).toLocaleDateString()}</span>
                         <div className="h-4 w-px bg-slate-300 hidden md:block" />
-                        <span>Duration: {event.timeDuration} minutes</span>
+                        <span>{isPublished ? `Duration: ${formatRemainingTime(remainingSeconds)}` : `Duration: ${event.timeDuration} minutes`}</span>
                     </div>
                 </div>
 
-                {!isPublished && (
-                    <div className="flex flex-wrap gap-2 lg:justify-end">
-                        {(canManageStage3 || canManageStage2) && (
-                            <>
+                <div className="flex flex-wrap gap-2 lg:justify-end">
+                    {canStartPublishedEvent && (
+                        <button
+                            type="button"
+                            onClick={() => onStart(event._id)}
+                            disabled={isEventActionActive || isTimerRunning || isTimerFinished}
+                            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                            {isStarting ? 'Starting...' : isTimerRunning ? 'Running...' : isTimerFinished ? 'Finished' : 'Start'}
+                        </button>
+                    )}
+                    {canArchivePublishedEvent && (
+                        <button
+                            type="button"
+                            onClick={() => onArchive(event._id)}
+                            disabled={isEventActionActive}
+                            className="rounded-lg bg-slate-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                            {isArchiving ? 'Archiving...' : 'Archive'}
+                        </button>
+                    )}
+                    {!isPublished && (
+                        <>
+                            {(canManageStage3 || canManageStage2) && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => onEdit(event)}
+                                        disabled={isEventActionActive}
+                                        className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+                                    >
+                                        Edit
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => onDelete(event._id)}
+                                        disabled={isEventActionActive}
+                                        className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+                                    >
+                                        {isDeleting ? 'Deleting...' : 'Delete'}
+                                    </button>
+                                </>
+                            )}
+                            {event.status !== 'stage1' && event.status !== 'stage2' && event.status !== 'stage3' && (
                                 <button
                                     type="button"
-                                    onClick={() => onEdit(event)}
-                                    disabled={activeEventActionId === event._id}
-                                    className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+                                    onClick={() => onAdvance(event._id)}
+                                    disabled={isEventActionActive}
+                                    className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-70"
                                 >
-                                    Edit
+                                    {isEventActionActive ? 'Updating...' : 'Edit'}
                                 </button>
-                                <button
-                                    type="button"
-                                    onClick={() => onDelete(event._id)}
-                                    disabled={activeEventActionId === event._id}
-                                    className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
-                                >
-                                    {activeEventActionId === event._id ? 'Deleting...' : 'Delete'}
-                                </button>
-                            </>
-                        )}
-                        {event.status !== 'stage1' && event.status !== 'stage2' && event.status !== 'stage3' && (
-                            <button
-                                type="button"
-                                onClick={() => onAdvance(event._id)}
-                                disabled={activeEventActionId === event._id}
-                                className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-70"
-                            >
-                                {activeEventActionId === event._id ? 'Updating...' : 'Edit'}
-                            </button>
-                        )}
-                        {event.status === 'stage1' && (
-                            <button
-                                type="button"
-                                onClick={() => onPublish(event._id)}
-                                disabled={activeEventActionId === event._id}
-                                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
-                            >
-                                {activeEventActionId === event._id ? 'Publishing...' : 'Confirm'}
-                            </button>
-                        )}
-                    </div>
-                )}
+                            )}
+                            {isStage1TargetUser && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => onPublish(event._id)}
+                                        disabled={isEventActionActive}
+                                        className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+                                    >
+                                        {isPublishing ? 'Publishing...' : 'Confirm'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => onDelete(event._id)}
+                                        disabled={isEventActionActive}
+                                        className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+                                    >
+                                        {isDeleting ? 'Deleting...' : 'Delete'}
+                                    </button>
+                                </>
+                            )}
+                        </>
+                    )}
+                </div>
             </div>
         </div>
     );

@@ -27,9 +27,17 @@ const eventSchema = new mongoose.Schema(
             min: 10,
             max: 60,
         },
+        remainingSeconds: {
+            type: Number,
+            min: 0,
+        },
+        timerStartedAt: {
+            type: Date,
+            default: null,
+        },
         status: {
             type: String,
-            enum: ['stage3', 'stage2', 'stage1', 'published'],
+            enum: ['stage3', 'stage2', 'stage1', 'published', 'archived'],
             default: 'stage3',
         },
     },

@@ -154,10 +154,13 @@ export const eventAPI = {
         return data;
     },
 
-    remove: async (eventId) => {
+    remove: async (eventId, actorUserId) => {
         const response = await fetch(`${API_URL}/event/${eventId}`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                actorUserId,
+            }),
         });
         const data = await response.json();
 
@@ -186,15 +189,56 @@ export const eventAPI = {
         return data;
     },
 
-    publish: async (eventId) => {
+    publish: async (eventId, actorUserId) => {
         const response = await fetch(`${API_URL}/event/${eventId}/publish`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                actorUserId,
+            }),
         });
         const data = await response.json();
 
         if (!response.ok) {
             const error = new Error(data.message || 'Failed to publish event');
+            error.statusCode = response.status;
+            throw error;
+        }
+
+        return data;
+    },
+
+    archive: async (eventId, actorUserId) => {
+        const response = await fetch(`${API_URL}/event/${eventId}/archive`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                actorUserId,
+            }),
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            const error = new Error(data.message || 'Failed to archive event');
+            error.statusCode = response.status;
+            throw error;
+        }
+
+        return data;
+    },
+
+    start: async (eventId, actorUserId) => {
+        const response = await fetch(`${API_URL}/event/${eventId}/start`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                actorUserId,
+            }),
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            const error = new Error(data.message || 'Failed to start event timer');
             error.statusCode = response.status;
             throw error;
         }

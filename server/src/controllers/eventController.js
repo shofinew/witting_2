@@ -15,6 +15,8 @@ const formatEventResponse = (event) => {
         description: e.description,
         date: e.date,
         timeDuration: e.timeDuration,
+        remainingSeconds: e.remainingSeconds,
+        timerStartedAt: e.timerStartedAt,
         status: e.status,
         createdAt: e.createdAt,
         updatedAt: e.updatedAt,
@@ -123,9 +125,10 @@ const advanceEvent = asyncHandler(async (req, res) => {
 // Publish Event Controller
 const publishEvent = asyncHandler(async (req, res) => {
     const { eventId } = req.params;
+    const { actorUserId } = req.body;
 
     try {
-        const event = await eventService.publishEvent(eventId);
+        const event = await eventService.publishEvent(eventId, actorUserId);
         return res.status(200).json({
             message: 'Event published successfully.',
             event: formatEventResponse(event),
@@ -137,12 +140,47 @@ const publishEvent = asyncHandler(async (req, res) => {
     }
 });
 
+const archiveEvent = asyncHandler(async (req, res) => {
+    const { eventId } = req.params;
+    const { actorUserId } = req.body;
+
+    try {
+        const event = await eventService.archiveEvent(eventId, actorUserId);
+        return res.status(200).json({
+            message: 'Event archived successfully.',
+            event: formatEventResponse(event),
+        });
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        const message = error.message || 'Server error while archiving event.';
+        return res.status(statusCode).json({ message });
+    }
+});
+
+const startEventTimer = asyncHandler(async (req, res) => {
+    const { eventId } = req.params;
+    const { actorUserId } = req.body;
+
+    try {
+        const event = await eventService.startEventTimer(eventId, actorUserId);
+        return res.status(200).json({
+            message: 'Event timer started successfully.',
+            event: formatEventResponse(event),
+        });
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        const message = error.message || 'Server error while starting event timer.';
+        return res.status(statusCode).json({ message });
+    }
+});
+
 // Delete Event Controller
 const deleteEvent = asyncHandler(async (req, res) => {
     const { eventId } = req.params;
+    const { actorUserId } = req.body;
 
     try {
-        await eventService.deleteEvent(eventId);
+        await eventService.deleteEvent(eventId, actorUserId);
         return res.status(200).json({ message: 'Event deleted successfully.' });
     } catch (error) {
         const statusCode = error.statusCode || 500;
@@ -157,5 +195,7 @@ module.exports = {
     updateEvent,
     advanceEvent,
     publishEvent,
+    archiveEvent,
+    startEventTimer,
     deleteEvent,
 };

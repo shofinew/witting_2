@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api';
 
-export function ProfilePage({ currentUser, onUserUpdate, onLogout }) {
+export function ProfilePage({ currentUser, onUserUpdate, onLogout, archivedEvents = [], archiveLoading = false, archiveError = '' }) {
     const navigate = useNavigate();
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState({
@@ -83,10 +83,10 @@ export function ProfilePage({ currentUser, onUserUpdate, onLogout }) {
                 </div>
             )}
 
-            <div className="mt-8">
+            <div className="mt-8 grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
                 <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-6">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold text-indigo-600">Account Information</h3>
+                        <h3 className="text-lg font-semibold text-indigo-600">Profile Information</h3>
                         <button
                             type="button"
                             onClick={() => setIsEditing(!isEditing)}
@@ -220,28 +220,75 @@ export function ProfilePage({ currentUser, onUserUpdate, onLogout }) {
                             </button>
                         </div>
                     )}
-                 
-                        
-                    
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm">
+                    <div className="mb-4">
+                        <h3 className="text-lg font-semibold text-slate-800">Event Archive</h3>
+                        <p className="mt-1 text-sm text-slate-500">Archived events connected to your account appear here.</p>
+                    </div>
+
+                    {archiveLoading && (
+                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                            Loading archived events...
+                        </div>
+                    )}
+
+                    {!archiveLoading && archiveError && (
+                        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                            {archiveError}
+                        </div>
+                    )}
+
+                    {!archiveLoading && !archiveError && archivedEvents.length === 0 && (
+                        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                            No archived events found.
+                        </div>
+                    )}
+
+                    {!archiveLoading && !archiveError && archivedEvents.length > 0 && (
+                        <div className="space-y-4">
+                            {archivedEvents.map((event) => (
+                                <div key={event._id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.15em] text-slate-700">
+                                            Archived
+                                        </span>
+                                        <span className="text-xs font-medium text-slate-500">
+                                            {event.createdAt ? `Created ${new Date(event.createdAt).toLocaleString()}` : 'Archived event'}
+                                        </span>
+                                    </div>
+                                    <p className="mt-3 text-base font-semibold text-slate-800">{event.description}</p>
+                                    <div className="mt-3 space-y-1 text-sm text-slate-600">
+                                        <p>Date: {event.date ? new Date(event.date).toLocaleDateString() : 'Not available'}</p>
+                                        <p>Duration: {event.timeDuration ? `${event.timeDuration} minutes` : 'Not available'}</p>
+                                        <p>Creator: {event.creator?.name || 'Unknown user'}</p>
+                                        <p>Target: {event.target?.name || 'Unknown user'}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
-               <div className="mt-8 gap-4">
-                        <button
-                            type="button"
-                            onClick={() => navigate('/feedback')}
-                            className="text-sm font-semibold text-indigo-700 transition hover:text-fuchsia-600"
-                        >
-                            Feedback
-                        </button>
-                        <br />
-                        <button
-                            type="button"
-                            onClick={onLogout}
-                            className="text-sm font-semibold text-slate-700 transition hover:text-red-600"
-                        >
-                            {currentUser.name} (Logout)
-                        </button>
-                    </div>
+
+            <div className="mt-8 gap-4">
+                <button
+                    type="button"
+                    onClick={() => navigate('/feedback')}
+                    className="text-sm font-semibold text-indigo-700 transition hover:text-fuchsia-600"
+                >
+                    Feedback
+                </button>
+                <br />
+                <button
+                    type="button"
+                    onClick={onLogout}
+                    className="text-sm font-semibold text-slate-700 transition hover:text-red-600"
+                >
+                    {currentUser.name} (Logout)
+                </button>
+            </div>
         </div>
     );
 }

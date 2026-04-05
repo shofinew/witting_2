@@ -47,18 +47,21 @@ function App() {
         stage2: [],
         stage1: [],
         published: [],
+        archived: [],
     });
     const [eventsLoading, setEventsLoading] = useState({
         stage3: false,
         stage2: false,
         stage1: false,
         published: false,
+        archived: false,
     });
     const [eventsError, setEventsError] = useState({
         stage3: '',
         stage2: '',
         stage1: '',
         published: '',
+        archived: '',
     });
     const [eventUser, setEventUser] = useState(null);
     const [editingEvent, setEditingEvent] = useState(null);
@@ -71,6 +74,7 @@ function App() {
     const [eventActionError, setEventActionError] = useState('');
     const [eventActionSuccess, setEventActionSuccess] = useState('');
     const [activeEventActionId, setActiveEventActionId] = useState('');
+    const [activeEventActionType, setActiveEventActionType] = useState('');
 
     useEffect(() => {
         if (!currentUser) {
@@ -132,6 +136,10 @@ function App() {
         const status = PAGE_TO_STATUS[activePage];
         if (status) {
             fetchEventsByStatus(status);
+        }
+
+        if (activePage === 'profile') {
+            fetchEventsByStatus('archived');
         }
     }, [activePage, currentUser]);
 
@@ -225,6 +233,8 @@ function App() {
         setAuthSuccess('');
         setEventActionError('');
         setEventActionSuccess('');
+        setActiveEventActionId('');
+        setActiveEventActionType('');
         localStorage.removeItem('wittingUser');
         closeEventModal();
         navigate('/');
@@ -321,6 +331,7 @@ function App() {
     const handleAdvanceEvent = async (eventId) => {
         try {
             setActiveEventActionId(eventId);
+            setActiveEventActionType('advance');
             setEventActionError('');
             setEventActionSuccess('');
             const data = await eventAPI.advance(eventId);
@@ -330,21 +341,24 @@ function App() {
             setEventActionError(err.message || 'Network error: could not update event status.');
         } finally {
             setActiveEventActionId('');
+            setActiveEventActionType('');
         }
     };
 
     const handlePublishEvent = async (eventId) => {
         try {
             setActiveEventActionId(eventId);
+            setActiveEventActionType('publish');
             setEventActionError('');
             setEventActionSuccess('');
-            const data = await eventAPI.publish(eventId);
+            const data = await eventAPI.publish(eventId, currentUser?._id);
             setEventActionSuccess(data.message || 'Event published successfully.');
             await Promise.all(['stage1', 'published'].map((status) => fetchEventsByStatus(status)));
         } catch (err) {
             setEventActionError(err.message || 'Network error: could not publish event.');
         } finally {
             setActiveEventActionId('');
+            setActiveEventActionType('');
         }
     };
 
@@ -356,15 +370,56 @@ function App() {
 
         try {
             setActiveEventActionId(eventId);
+            setActiveEventActionType('delete');
             setEventActionError('');
             setEventActionSuccess('');
-            const data = await eventAPI.remove(eventId);
+            const data = await eventAPI.remove(eventId, currentUser?._id);
             setEventActionSuccess(data.message || 'Event deleted successfully.');
             await Promise.all(['stage3', 'stage2', 'stage1'].map((status) => fetchEventsByStatus(status)));
         } catch (err) {
             setEventActionError(err.message || 'Network error: could not delete event.');
         } finally {
             setActiveEventActionId('');
+            setActiveEventActionType('');
+        }
+    };
+
+    const handleArchiveEvent = async (eventId) => {
+        const shouldArchive = window.confirm('Are you sure you want to archive this event?');
+        if (!shouldArchive) {
+            return;
+        }
+
+        try {
+            setActiveEventActionId(eventId);
+            setActiveEventActionType('archive');
+            setEventActionError('');
+            setEventActionSuccess('');
+            const data = await eventAPI.archive(eventId, currentUser?._id);
+            setEventActionSuccess(data.message || 'Event archived successfully.');
+            await fetchEventsByStatus('published');
+        } catch (err) {
+            setEventActionError(err.message || 'Network error: could not archive event.');
+        } finally {
+            setActiveEventActionId('');
+            setActiveEventActionType('');
+        }
+    };
+
+    const handleStartEvent = async (eventId) => {
+        try {
+            setActiveEventActionId(eventId);
+            setActiveEventActionType('start');
+            setEventActionError('');
+            setEventActionSuccess('');
+            const data = await eventAPI.start(eventId, currentUser?._id);
+            setEventActionSuccess(data.message || 'Event timer started successfully.');
+            await fetchEventsByStatus('published');
+        } catch (err) {
+            setEventActionError(err.message || 'Network error: could not start event timer.');
+        } finally {
+            setActiveEventActionId('');
+            setActiveEventActionType('');
         }
     };
 
@@ -431,14 +486,19 @@ function App() {
                         element={
                             <HomePage
                                 events={eventsByStatus.published}
+                                now={now}
                                 isLoading={eventsLoading.published}
                                 error={eventsError.published}
                                 actionError={eventActionError}
                                 actionSuccess={eventActionSuccess}
+                                currentUserId={currentUser._id}
                                 activeEventActionId={activeEventActionId}
+                                activeEventActionType={activeEventActionType}
                                 onRefresh={() => fetchEventsByStatus('published')}
                                 onAdvance={handleAdvanceEvent}
                                 onPublish={handlePublishEvent}
+                                onArchive={handleArchiveEvent}
+                                onStart={handleStartEvent}
                             />
                         }
                     />
@@ -468,17 +528,21 @@ function App() {
                             <StagePage
                                 stage="stage3"
                                 events={eventsByStatus.stage3}
+                                now={now}
                                 isLoading={eventsLoading.stage3}
                                 error={eventsError.stage3}
                                 actionError={eventActionError}
                                 actionSuccess={eventActionSuccess}
                                 currentUserId={currentUser._id}
                                 activeEventActionId={activeEventActionId}
+                                activeEventActionType={activeEventActionType}
                                 onRefresh={() => fetchEventsByStatus('stage3')}
                                 onAdvance={handleAdvanceEvent}
                                 onPublish={handlePublishEvent}
                                 onEdit={openEditEventModal}
                                 onDelete={handleDeleteEvent}
+                                onArchive={handleArchiveEvent}
+                                onStart={handleStartEvent}
                             />
                         }
                     />
@@ -488,17 +552,21 @@ function App() {
                             <StagePage
                                 stage="stage2"
                                 events={eventsByStatus.stage2}
+                                now={now}
                                 isLoading={eventsLoading.stage2}
                                 error={eventsError.stage2}
                                 actionError={eventActionError}
                                 actionSuccess={eventActionSuccess}
                                 currentUserId={currentUser._id}
                                 activeEventActionId={activeEventActionId}
+                                activeEventActionType={activeEventActionType}
                                 onRefresh={() => fetchEventsByStatus('stage2')}
                                 onAdvance={handleAdvanceEvent}
                                 onPublish={handlePublishEvent}
                                 onEdit={openEditEventModal}
                                 onDelete={handleDeleteEvent}
+                                onArchive={handleArchiveEvent}
+                                onStart={handleStartEvent}
                             />
                         }
                     />
@@ -508,17 +576,21 @@ function App() {
                             <StagePage
                                 stage="stage1"
                                 events={eventsByStatus.stage1}
+                                now={now}
                                 isLoading={eventsLoading.stage1}
                                 error={eventsError.stage1}
                                 actionError={eventActionError}
                                 actionSuccess={eventActionSuccess}
                                 currentUserId={currentUser._id}
                                 activeEventActionId={activeEventActionId}
+                                activeEventActionType={activeEventActionType}
                                 onRefresh={() => fetchEventsByStatus('stage1')}
                                 onAdvance={handleAdvanceEvent}
                                 onPublish={handlePublishEvent}
                                 onEdit={openEditEventModal}
                                 onDelete={handleDeleteEvent}
+                                onArchive={handleArchiveEvent}
+                                onStart={handleStartEvent}
                             />
                         }
                     />
@@ -536,7 +608,19 @@ function App() {
                             />
                         }
                     />
-                    <Route path="/profile" element={<ProfilePage currentUser={currentUser} onUserUpdate={handleUserUpdate} onLogout={handleLogout} />} />
+                    <Route
+                        path="/profile"
+                        element={
+                            <ProfilePage
+                                currentUser={currentUser}
+                                onUserUpdate={handleUserUpdate}
+                                onLogout={handleLogout}
+                                archivedEvents={eventsByStatus.archived}
+                                archiveLoading={eventsLoading.archived}
+                                archiveError={eventsError.archived}
+                            />
+                        }
+                    />
                     <Route path="/feedback" element={<FeedbackPage currentUser={currentUser} />} />
                     <Route path="*" element={<Navigate replace to="/home" />} />
                 </Routes>
