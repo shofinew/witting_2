@@ -7,6 +7,8 @@ const router = express.Router();
 // Event Routes
 router.post('/event/add', eventController.createEvent);
 router.get('/events', eventController.getEventsByStatus);
+router.post('/public-events', eventController.createPublicEvent);
+router.get('/public-events', eventController.getPublicEvents);
 router.patch('/event/:eventId', validateObjectIdParam('eventId'), eventController.updateEvent);
 router.patch('/event/:eventId/advance', validateObjectIdParam('eventId'), eventController.advanceEvent);
 router.patch('/event/:eventId/publish', validateObjectIdParam('eventId'), eventController.publishEvent);

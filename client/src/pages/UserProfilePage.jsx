@@ -1,30 +1,60 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { userAPI } from '../api';
+import { authAPI, userAPI } from '../api';
+import { getCountryLabel } from '../utils/countries';
+import { getUserUniqueId } from '../utils/user';
 
-export function UserProfilePage() {
+export function UserProfilePage({ currentUser, onCurrentUserUpdate }) {
     const navigate = useNavigate();
     const { userId } = useParams();
+
     const [user, setUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
+    const [followError, setFollowError] = useState('');
+    const [isFollowSubmitting, setIsFollowSubmitting] = useState(false);
 
     useEffect(() => {
+        if (!userId) {
+            setError('Invalid user ID');
+            setIsLoading(false);
+            return;
+        }
+
         const loadUser = async () => {
             try {
                 setError('');
                 setIsLoading(true);
-                const data = await userAPI.getById(userId);
+                const data = await userAPI.getById(userId, currentUser?._id);
                 setUser(data.user);
             } catch (err) {
-                setError(err.message || 'Failed to load user profile.');
+                console.error('Error loading user profile:', err);
+                setError(err.message || 'Failed to load user profile. Please check your connection and try again.');
             } finally {
                 setIsLoading(false);
             }
         };
 
         loadUser();
-    }, [userId]);
+    }, [userId, currentUser?._id]);
+
+    const handleToggleFollow = async () => {
+        if (!currentUser?._id || !user?._id || currentUser._id === user._id) {
+            return;
+        }
+
+        try {
+            setFollowError('');
+            setIsFollowSubmitting(true);
+            const response = await authAPI.toggleFollow(currentUser._id, user._id);
+            setUser(response.targetUser);
+            onCurrentUserUpdate(response.currentUser);
+        } catch (err) {
+            setFollowError(err.message || 'Failed to update follow status.');
+        } finally {
+            setIsFollowSubmitting(false);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -38,20 +68,32 @@ export function UserProfilePage() {
         return (
             <div className="w-full rounded-3xl border border-indigo-100 bg-white/95 p-8 shadow-2xl backdrop-blur-sm">
                 <div className="mb-4 rounded-lg border border-red-200 bg-red-100 px-4 py-3 text-sm text-red-900">
-                    {error}
+                    <p className="font-semibold">Error loading user profile</p>
+                    <p className="mt-1">{error}</p>
                 </div>
-                <button
-                    type="button"
-                    onClick={() => navigate('/search')}
-                    className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-                >
-                    Back to Search
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        type="button"
+                        onClick={() => window.location.reload()}
+                        className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                    >
+                        Retry
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => navigate('/search')}
+                        className="rounded-xl bg-gray-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-700"
+                    >
+                        Back to Search
+                    </button>
+                </div>
             </div>
         );
     }
 
     const memberSinceDate = user.createdAt || user.memberSince;
+    const uniqueIdLabel = getUserUniqueId(user);
+    const canFollow = currentUser?._id && currentUser._id !== user._id;
 
     return (
         <div className="w-full rounded-3xl border border-indigo-100 bg-white/95 p-8 shadow-2xl backdrop-blur-sm">
@@ -61,20 +103,58 @@ export function UserProfilePage() {
                     <h2 className="mt-2 text-3xl font-black text-slate-800">{user.name}</h2>
                     <p className="mt-2 text-slate-600">Viewing the selected user profile from search results.</p>
                 </div>
-                <button
-                    type="button"
-                    onClick={() => navigate('/search')}
-                    className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
-                >
-                    Back to Search
-                </button>
+                <div className="flex flex-wrap gap-3">
+                    {canFollow && (
+                        <button
+                            type="button"
+                            onClick={handleToggleFollow}
+                            disabled={isFollowSubmitting}
+                            className={`rounded-xl px-4 py-2 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-70 ${user.isFollowing ? 'bg-slate-700 hover:bg-slate-800' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+                        >
+                            {isFollowSubmitting ? 'Updating...' : user.isFollowing ? 'Unfollow' : 'Follow'}
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={() => navigate('/search')}
+                        className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                    >
+                        Back to Search
+                    </button>
+                </div>
             </div>
+
+            {followError && (
+                <div className="mb-4 rounded-lg border border-red-200 bg-red-100 px-4 py-3 text-sm text-red-900">
+                    {followError}
+                </div>
+            )}
 
             <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-6">
                 <div className="space-y-4">
                     <div className="border-b border-indigo-200 pb-4">
                         <p className="text-sm font-semibold text-indigo-600">Name</p>
                         <p className="mt-1 text-lg font-bold text-slate-800">{user.name}</p>
+                    </div>
+                    <div className="border-b border-indigo-200 py-4">
+                        <p className="text-sm font-semibold text-indigo-600">Total Followers</p>
+                        <p className="mt-1 text-lg font-bold text-slate-800">{user.totalFollowers || 0}</p>
+                    </div>
+                    <div className="border-b border-indigo-200 py-4">
+                        <p className="text-sm font-semibold text-indigo-600">Total Followee</p>
+                        <p className="mt-1 text-lg font-bold text-slate-800">{user.totalFollowee || 0}</p>
+                    </div>
+                    <div className="border-b border-indigo-200 py-4">
+                        <p className="text-sm font-semibold text-indigo-600">Designation</p>
+                        <p className="mt-1 text-lg font-bold text-slate-800">{user.designation || 'Not provided'}</p>
+                    </div>
+                    <div className="border-b border-indigo-200 py-4">
+                        <p className="text-sm font-semibold text-indigo-600">Achievement</p>
+                        <p className="mt-1 text-lg font-bold text-slate-800">{user.achievement || 'Not provided'}</p>
+                    </div>
+                    <div className="border-b border-indigo-200 py-4">
+                        <p className="text-sm font-semibold text-indigo-600">Unique ID</p>
+                        <p className="mt-1 text-lg font-bold text-slate-800" dir="ltr">{uniqueIdLabel}</p>
                     </div>
                     <div className="border-b border-indigo-200 py-4">
                         <p className="text-sm font-semibold text-indigo-600">Email</p>
@@ -86,7 +166,7 @@ export function UserProfilePage() {
                     </div>
                     <div className="border-b border-indigo-200 py-4">
                         <p className="text-sm font-semibold text-indigo-600">Country</p>
-                        <p className="mt-1 text-lg font-bold text-slate-800">{user.country || 'Not provided'}</p>
+                        <p className="mt-1 text-lg font-bold text-slate-800">{getCountryLabel(user.country)}</p>
                     </div>
                     <div className="border-b border-indigo-200 py-4">
                         <p className="text-sm font-semibold text-indigo-600">Date of Birth</p>

@@ -1,1 +1,11 @@
 @import "tailwindcss";
+
+html {
+    min-height: 100%;
+    scrollbar-gutter: stable;
+}
+
+body {
+    min-height: 100%;
+    overflow-y: scroll;
+}

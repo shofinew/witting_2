@@ -1,4 +1,6 @@
 const Event = require('../models/Event');
+const Archived = require('../models/Archived');
+const PublicEvent = require('../models/PublicEvent');
 const User = require('../models/User');
 const { STATUS_ORDER, VALID_STATUSES, DEFAULT_STATUS } = require('../utils/constants');
 
@@ -11,6 +13,72 @@ const getCurrentRemainingSeconds = (event) => {
 
     const elapsedSeconds = Math.floor((Date.now() - new Date(event.timerStartedAt).getTime()) / 1000);
     return Math.max(0, baseSeconds - elapsedSeconds);
+};
+
+const buildParticipantQuery = (userId) => {
+    if (!userId) {
+        return {};
+    }
+
+    return {
+        $or: [{ creatorId: userId }, { targetId: userId }],
+    };
+};
+
+const addPublishedSerialNumbers = (events) => {
+    const targetSerialMap = new Map();
+
+    return events.map((event) => {
+        const eventDate = event.date ? new Date(event.date).toISOString().slice(0, 10) : 'unknown-date';
+        const targetId = String(event.targetId?._id || event.targetId || '');
+        const serialKey = `${eventDate}:${targetId}`;
+        const currentSerial = (targetSerialMap.get(serialKey) || 0) + 1;
+        targetSerialMap.set(serialKey, currentSerial);
+
+        return {
+            ...event,
+            serialNo: currentSerial,
+        };
+    });
+};
+
+const migrateLegacyArchivedEvents = async (userId) => {
+    const participantQuery = buildParticipantQuery(userId);
+    const legacyArchivedEvents = await Event.find({ status: 'archived', ...participantQuery }).lean();
+
+    if (legacyArchivedEvents.length === 0) {
+        return;
+    }
+
+    const archivedOperations = legacyArchivedEvents.map((event) => ({
+        updateOne: {
+            filter: { originalEventId: event._id },
+            update: {
+                $set: {
+                    creatorId: event.creatorId,
+                    targetId: event.targetId,
+                    description: event.description,
+                    date: event.date,
+                    timeDuration: event.timeDuration,
+                    remainingSeconds: typeof event.remainingSeconds === 'number'
+                        ? event.remainingSeconds
+                        : event.timeDuration * 60,
+                    archivedAt: event.archivedAt || event.updatedAt || event.createdAt,
+                    eventCreatedAt: event.createdAt,
+                    createdAt: event.createdAt,
+                    updatedAt: event.updatedAt || event.createdAt,
+                    status: 'archived',
+                },
+                $setOnInsert: {
+                    originalEventId: event._id,
+                },
+            },
+            upsert: true,
+        },
+    }));
+
+    await Archived.bulkWrite(archivedOperations);
+    await Event.deleteMany({ _id: { $in: legacyArchivedEvents.map((event) => event._id) } });
 };
 
 const eventService = {
@@ -54,16 +122,43 @@ const eventService = {
             throw error;
         }
 
-        const query = { status };
-        if (userId) {
-            query.$or = [{ creatorId: userId }, { targetId: userId }];
+        const participantQuery = buildParticipantQuery(userId);
+
+        if (status === 'archived') {
+            await migrateLegacyArchivedEvents(userId);
+
+            return Archived.find({ status, ...participantQuery })
+                .populate('creatorId', 'name profession')
+                .populate('targetId', 'name profession')
+                .sort({ archivedAt: -1 })
+                .lean();
         }
+
+        const sortOrder = ['stage3', 'stage2', 'stage1', 'published'].includes(status)
+            ? { createdAt: 1 }
+            : { createdAt: -1 };
+
+        const query = status === 'published' ? { status } : { status, ...participantQuery };
 
         const events = await Event.find(query)
             .populate('creatorId', 'name profession')
             .populate('targetId', 'name profession')
-            .sort({ createdAt: -1 })
+            .sort(sortOrder)
             .lean();
+
+        if (status === 'published') {
+            const publishedEvents = addPublishedSerialNumbers(events);
+
+            if (!userId) {
+                return publishedEvents;
+            }
+
+            return publishedEvents.filter((event) => {
+                const creatorId = String(event.creatorId?._id || event.creatorId || '');
+                const targetId = String(event.targetId?._id || event.targetId || '');
+                return creatorId === userId || targetId === userId;
+            });
+        }
 
         return events;
     },
@@ -172,14 +267,20 @@ const eventService = {
             throw error;
         }
 
-        if (event.status !== 'stage1') {
-            const error = new Error('Only stage1 events can be published.');
+        if (!['stage3', 'stage2', 'stage1'].includes(event.status)) {
+            const error = new Error('Only stage3, stage2, and stage1 events can be published.');
             error.statusCode = 400;
             throw error;
         }
 
-        if (!actorUserId || event.targetId?.toString() !== actorUserId.toString()) {
-            const error = new Error('Only the target user can confirm and publish a stage1 event.');
+        const actorId = actorUserId?.toString();
+        const creatorId = event.creatorId?.toString();
+        const targetId = event.targetId?.toString();
+        const canPublish = (event.status === 'stage2' && actorId === creatorId)
+            || ((event.status === 'stage3' || event.status === 'stage1') && actorId === targetId);
+
+        if (!actorId || !canPublish) {
+            const error = new Error('Only the assigned user can confirm and publish this event.');
             error.statusCode = 403;
             throw error;
         }
@@ -222,16 +323,29 @@ const eventService = {
             throw error;
         }
 
-        event.status = 'archived';
-        event.remainingSeconds = getCurrentRemainingSeconds(event);
-        event.timerStartedAt = null;
-        await event.save();
-        await event.populate([
+        const archivedEvent = new Archived({
+            originalEventId: event._id,
+            creatorId: event.creatorId,
+            targetId: event.targetId,
+            description: event.description,
+            date: event.date,
+            timeDuration: event.timeDuration,
+            remainingSeconds: getCurrentRemainingSeconds(event),
+            archivedAt: new Date(),
+            eventCreatedAt: event.createdAt,
+            createdAt: event.createdAt,
+            updatedAt: event.updatedAt || event.createdAt,
+            status: 'archived',
+        });
+
+        await archivedEvent.save();
+        await Event.findByIdAndDelete(eventId);
+        await archivedEvent.populate([
             { path: 'creatorId', select: 'name profession' },
             { path: 'targetId', select: 'name profession' },
         ]);
 
-        return event;
+        return archivedEvent;
     },
 
     startEventTimer: async (eventId, actorUserId) => {
@@ -276,6 +390,36 @@ const eventService = {
         ]);
 
         return event;
+    },
+
+    createPublicEvent: async (creatorId, title, description, date, time) => {
+        const creator = await User.findById(creatorId).lean();
+
+        if (!creator) {
+            const error = new Error('Creator user not found.');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const publicEvent = new PublicEvent({
+            creatorId,
+            title: title.trim(),
+            description: description.trim(),
+            date: new Date(date),
+            time: String(time).trim(),
+        });
+
+        await publicEvent.save();
+        await publicEvent.populate({ path: 'creatorId', select: 'name profession' });
+
+        return publicEvent;
+    },
+
+    getPublicEvents: async () => {
+        return PublicEvent.find({})
+            .populate('creatorId', 'name profession')
+            .sort({ date: 1, time: 1, createdAt: -1 })
+            .lean();
     },
 };
 

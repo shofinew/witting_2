@@ -1,7 +1,12 @@
 const mongoose = require('mongoose');
 
-const eventSchema = new mongoose.Schema(
+const archivedSchema = new mongoose.Schema(
     {
+        originalEventId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Event',
+            required: true,
+        },
         creatorId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
@@ -31,21 +36,33 @@ const eventSchema = new mongoose.Schema(
             type: Number,
             min: 0,
         },
-        timerStartedAt: {
+        archivedAt: {
             type: Date,
-            default: null,
+            default: Date.now,
+        },
+        eventCreatedAt: {
+            type: Date,
+            required: true,
         },
         status: {
             type: String,
-            enum: ['stage3', 'stage2', 'stage1', 'published', 'archived'],
-            default: 'stage3',
+            enum: ['archived'],
+            default: 'archived',
+        },
+        createdAt: {
+            type: Date,
+            required: true,
+        },
+        updatedAt: {
+            type: Date,
+            required: true,
         },
     },
     {
-        timestamps: true,
-        collection: 'Event',
+        timestamps: false,
+        collection: 'Archived',
         versionKey: '__v',
     }
 );
 
-module.exports = mongoose.model('Event', eventSchema);
+module.exports = mongoose.model('Archived', archivedSchema);

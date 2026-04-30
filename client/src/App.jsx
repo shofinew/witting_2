@@ -3,15 +3,32 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-
 import { AuthPage } from './pages/AuthPage';
 import { Header } from './components/Header';
 import { EventModal } from './components/EventModal';
+import { UserProfileModal } from './components/UserProfileModal';
 import { HomePage } from './pages/HomePage';
 import { UsersPage } from './pages/UsersPage';
 import { SearchPage } from './pages/SearchPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { StagePage } from './pages/StagePage';
+import { PublicPage } from './pages/PublicPage';
+import { FamilyPage } from './pages/FamilyPage';
 import { FeedbackPage } from './pages/FeedbackPage';
 import { UserProfilePage } from './pages/UserProfilePage';
+import { TotalEventsPage } from './pages/TotalEventsPage';
 import { PAGE_TO_STATUS } from './constants';
 import { authAPI, userAPI, eventAPI } from './api';
+import { getUserUniqueId } from './utils/user';
+
+const isSameLocalDate = (value, today) => {
+    if (!value) {
+        return false;
+    }
+
+    const eventDate = new Date(value);
+
+    return eventDate.getFullYear() === today.getFullYear()
+        && eventDate.getMonth() === today.getMonth()
+        && eventDate.getDate() === today.getDate();
+};
 
 function App() {
     const location = useLocation();
@@ -27,6 +44,13 @@ function App() {
     const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('');
     const [loginEmail, setLoginEmail] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
+    const [forgotEmail, setForgotEmail] = useState('');
+    const [resetOtp, setResetOtp] = useState('');
+    const [resetPassword, setResetPassword] = useState('');
+    const [resetPasswordConfirm, setResetPasswordConfirm] = useState('');
+    const [otpPreview, setOtpPreview] = useState('');
+    const [hasRequestedOtp, setHasRequestedOtp] = useState(false);
+    const [otpExpiresAt, setOtpExpiresAt] = useState('');
     const [authError, setAuthError] = useState('');
     const [authSuccess, setAuthSuccess] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -75,6 +99,28 @@ function App() {
     const [eventActionSuccess, setEventActionSuccess] = useState('');
     const [activeEventActionId, setActiveEventActionId] = useState('');
     const [activeEventActionType, setActiveEventActionType] = useState('');
+    const [selectedProfileUser, setSelectedProfileUser] = useState(null);
+
+    const isPastEventDate = (value) => {
+        if (!value) {
+            return false;
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const selectedDate = new Date(`${value}T00:00:00`);
+        return selectedDate < today;
+    };
+
+    const clearPasswordResetState = () => {
+        setForgotEmail('');
+        setResetOtp('');
+        setResetPassword('');
+        setResetPasswordConfirm('');
+        setOtpPreview('');
+        setHasRequestedOtp(false);
+        setOtpExpiresAt('');
+    };
 
     useEffect(() => {
         if (!currentUser) {
@@ -82,6 +128,38 @@ function App() {
         }
         localStorage.setItem('wittingUser', JSON.stringify(currentUser));
     }, [currentUser]);
+
+    useEffect(() => {
+        if (!currentUser?._id) {
+            return;
+        }
+
+        let isMounted = true;
+
+        const runSessionCheck = async () => {
+            try {
+                const result = await authAPI.validateSession(currentUser._id, currentUser.sessionVersion || 0);
+                if (!isMounted || result.valid) {
+                    return;
+                }
+
+                setCurrentUser(null);
+                setAuthView('login');
+                setAuthError(result.reason || 'Your session has expired.');
+                setAuthSuccess('');
+                localStorage.removeItem('wittingUser');
+                navigate('/');
+            } catch {
+                // Keep the local session when validation cannot be reached.
+            }
+        };
+
+        runSessionCheck();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [currentUser, navigate]);
 
     useEffect(() => {
         const timer = window.setInterval(() => setNow(new Date()), 1000);
@@ -92,7 +170,7 @@ function App() {
         try {
             setUsersError('');
             setIsLoadingUsers(true);
-            const data = await userAPI.getAll();
+            const data = await userAPI.getAll(currentUser?._id);
             setUsers(data.users || []);
         } catch (err) {
             setUsersError(err.message || 'Network error: could not load users.');
@@ -148,9 +226,9 @@ function App() {
         () =>
             users.filter((user) => {
                 if (!normalizedSearch) {
-                    return true;
+                    return false;
                 }
-                return user.name?.toLowerCase().includes(normalizedSearch) || user.email?.toLowerCase().includes(normalizedSearch);
+                return getUserUniqueId(user).toLowerCase().includes(normalizedSearch);
             }),
         [normalizedSearch, users]
     );
@@ -185,6 +263,7 @@ function App() {
             setRegisterPasswordConfirm('');
             setLoginEmail(registerEmail);
             setAuthView('login');
+            clearPasswordResetState();
         } catch (err) {
             setAuthError(err.message || 'Network error: please try again.');
         } finally {
@@ -207,8 +286,88 @@ function App() {
             const data = await authAPI.login(loginEmail, loginPassword);
             setCurrentUser(data.user);
             setLoginPassword('');
+            clearPasswordResetState();
             setAuthSuccess(data.message || 'Login successful');
             navigate('/users');
+        } catch (err) {
+            setAuthError(err.message || 'Network error: please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleRequestPasswordReset = async (e) => {
+        e.preventDefault();
+        setAuthError('');
+        setAuthSuccess('');
+
+        if (!forgotEmail) {
+            setAuthError('Email is required.');
+            return;
+        }
+
+        try {
+            setIsSubmitting(true);
+            const normalizedEmail = forgotEmail.trim().toLowerCase();
+            setForgotEmail(normalizedEmail);
+            setResetOtp('');
+            setResetPassword('');
+            setResetPasswordConfirm('');
+            setOtpPreview('');
+            setHasRequestedOtp(false);
+            setOtpExpiresAt('');
+
+            const data = await authAPI.requestPasswordReset(normalizedEmail);
+            setOtpPreview(data.otpPreview || '');
+            setHasRequestedOtp(true);
+            setOtpExpiresAt(data.expiresAt || '');
+            setAuthSuccess(data.otpPreview
+                ? `OTP generated. It will expire in 20 minutes. Use the code shown below.`
+                : 'If the account exists, an OTP has been generated for 20 minutes.');
+        } catch (err) {
+            setAuthError(err.message || 'Network error: please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleResetPassword = async (e) => {
+        e.preventDefault();
+        setAuthError('');
+        setAuthSuccess('');
+
+        if (!forgotEmail || !resetOtp || !resetPassword || !resetPasswordConfirm) {
+            setAuthError('Email, OTP, and both password fields are required.');
+            return;
+        }
+
+        if (!hasRequestedOtp) {
+            setAuthError('Request an OTP before trying to reset your password.');
+            return;
+        }
+
+        if (resetPassword !== resetPasswordConfirm) {
+            setAuthError('Passwords do not match.');
+            return;
+        }
+
+        if (resetPassword.length < 8) {
+            setAuthError('Password must be at least 8 characters long.');
+            return;
+        }
+
+        try {
+            setIsSubmitting(true);
+            const normalizedEmail = forgotEmail.trim().toLowerCase();
+            const data = await authAPI.resetPassword(normalizedEmail, resetOtp.trim(), resetPassword, resetPasswordConfirm);
+            setLoginEmail(normalizedEmail);
+            setLoginPassword('');
+            setAuthView('login');
+            setCurrentUser(null);
+            localStorage.removeItem('wittingUser');
+            clearPasswordResetState();
+            setAuthSuccess(data.message || 'Password reset successful.');
+            navigate('/');
         } catch (err) {
             setAuthError(err.message || 'Network error: please try again.');
         } finally {
@@ -230,6 +389,7 @@ function App() {
     const handleLogout = () => {
         setCurrentUser(null);
         setLoginPassword('');
+        clearPasswordResetState();
         setAuthSuccess('');
         setEventActionError('');
         setEventActionSuccess('');
@@ -241,6 +401,10 @@ function App() {
     };
 
     const openEventModal = (user) => {
+        if (!currentUser?._id || currentUser._id === user?._id) {
+            return;
+        }
+
         setEditingEvent(null);
         setEventUser(user);
         setEventDescription('');
@@ -260,6 +424,19 @@ function App() {
         setEventSuccess('');
     };
 
+    const openUserProfileModal = (user) => {
+        setSelectedProfileUser(user);
+    };
+
+    const closeUserProfileModal = () => {
+        setSelectedProfileUser(null);
+    };
+
+    const handleSelectedProfileUserChange = (updatedUser) => {
+        setSelectedProfileUser(updatedUser);
+        setUsers((prevUsers) => prevUsers.map((user) => (user._id === updatedUser._id ? updatedUser : user)));
+    };
+
     const handleCreateEvent = async () => {
         setEventError('');
         setEventSuccess('');
@@ -269,8 +446,18 @@ function App() {
             return;
         }
 
+        if (currentUser._id === eventUser._id) {
+            setEventError('You cannot create an event for yourself.');
+            return;
+        }
+
         if (!eventDescription.trim() || !eventDate || !eventDuration) {
             setEventError('Description, date, and time duration are required.');
+            return;
+        }
+
+        if (isPastEventDate(eventDate)) {
+            setEventError('Event date must be today or a future date.');
             return;
         }
 
@@ -306,6 +493,11 @@ function App() {
 
         if (!eventDescription.trim() || !eventDate || !eventDuration) {
             setEventError('Description, date, and time duration are required.');
+            return;
+        }
+
+        if (isPastEventDate(eventDate)) {
+            setEventError('Event date must be today or a future date.');
             return;
         }
 
@@ -353,7 +545,7 @@ function App() {
             setEventActionSuccess('');
             const data = await eventAPI.publish(eventId, currentUser?._id);
             setEventActionSuccess(data.message || 'Event published successfully.');
-            await Promise.all(['stage1', 'published'].map((status) => fetchEventsByStatus(status)));
+            await Promise.all(['stage3', 'stage1', 'published'].map((status) => fetchEventsByStatus(status)));
         } catch (err) {
             setEventActionError(err.message || 'Network error: could not publish event.');
         } finally {
@@ -385,11 +577,6 @@ function App() {
     };
 
     const handleArchiveEvent = async (eventId) => {
-        const shouldArchive = window.confirm('Are you sure you want to archive this event?');
-        if (!shouldArchive) {
-            return;
-        }
-
         try {
             setActiveEventActionId(eventId);
             setActiveEventActionType('archive');
@@ -397,7 +584,10 @@ function App() {
             setEventActionSuccess('');
             const data = await eventAPI.archive(eventId, currentUser?._id);
             setEventActionSuccess(data.message || 'Event archived successfully.');
-            await fetchEventsByStatus('published');
+            await Promise.all([
+                fetchEventsByStatus('published'),
+                fetchEventsByStatus('archived'),
+            ]);
         } catch (err) {
             setEventActionError(err.message || 'Network error: could not archive event.');
         } finally {
@@ -441,6 +631,19 @@ function App() {
         setEventActionSuccess('');
     };
 
+    const todaysPublishedCount = useMemo(
+        () => (eventsByStatus.published || []).filter((event) => isSameLocalDate(event.date, now)).length,
+        [eventsByStatus.published, now]
+    );
+
+    const eventCounts = {
+        home: todaysPublishedCount,
+        'total-events': eventsByStatus.published?.length || 0,
+        stage1: eventsByStatus.stage1?.length || 0,
+        stage2: eventsByStatus.stage2?.length || 0,
+        stage3: eventsByStatus.stage3?.length || 0,
+    };
+
     if (!currentUser) {
         return (
             <AuthPage
@@ -452,6 +655,17 @@ function App() {
                 setLoginEmail={setLoginEmail}
                 loginPassword={loginPassword}
                 setLoginPassword={setLoginPassword}
+                forgotEmail={forgotEmail}
+                setForgotEmail={setForgotEmail}
+                resetOtp={resetOtp}
+                setResetOtp={setResetOtp}
+                resetPassword={resetPassword}
+                setResetPassword={setResetPassword}
+                resetPasswordConfirm={resetPasswordConfirm}
+                setResetPasswordConfirm={setResetPasswordConfirm}
+                otpPreview={otpPreview}
+                hasRequestedOtp={hasRequestedOtp}
+                otpExpiresAt={otpExpiresAt}
                 registerName={registerName}
                 setRegisterName={setRegisterName}
                 registerEmail={registerEmail}
@@ -463,6 +677,9 @@ function App() {
                 isSubmitting={isSubmitting}
                 onRegister={handleRegister}
                 onLogin={handleLogin}
+                onRequestPasswordReset={handleRequestPasswordReset}
+                onResetPassword={handleResetPassword}
+                onClearPasswordResetState={clearPasswordResetState}
                 setAuthError={setAuthError}
                 setAuthSuccess={setAuthSuccess}
             />
@@ -477,6 +694,7 @@ function App() {
                     formattedDate={formattedDate}
                     formattedTime={formattedTime}
                     onClearMessages={clearMessages}
+                    eventCounts={eventCounts}
                 />
 
                 <Routes>
@@ -503,25 +721,38 @@ function App() {
                         }
                     />
                     <Route
-                        path="/public-event"
+                        path="/total-events"
                         element={
-                            <div className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-xl">
-                                <h2 className="text-xl font-bold text-slate-900">Public Event</h2>
-                                <p className="mt-2 text-slate-600">This page is currently empty.</p>
-                            </div>
+                            <TotalEventsPage
+                                events={eventsByStatus.published}
+                                now={now}
+                                isLoading={eventsLoading.published}
+                                error={eventsError.published}
+                                actionError={eventActionError}
+                                actionSuccess={eventActionSuccess}
+                                currentUserId={currentUser._id}
+                                activeEventActionId={activeEventActionId}
+                                activeEventActionType={activeEventActionType}
+                                onRefresh={() => fetchEventsByStatus('published')}
+                                onAdvance={handleAdvanceEvent}
+                                onPublish={handlePublishEvent}
+                                onArchive={handleArchiveEvent}
+                                onStart={handleStartEvent}
+                            />
                         }
                     />
+                    <Route path="/public" element={<PublicPage currentUser={currentUser} />} />
+                    <Route path="/family" element={<FamilyPage />} />
                     <Route
-                        path="/family"
+                        path="/users/:userId"
                         element={
-                            <div className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-xl">
-                                <h2 className="text-xl font-bold text-slate-900">Family</h2>
-                                <p className="mt-2 text-slate-600">This page is currently empty.</p>
-                            </div>
+                            <UserProfilePage
+                                currentUser={currentUser}
+                                onCurrentUserUpdate={handleUserUpdate}
+                            />
                         }
                     />
                     <Route path="/users" element={<UsersPage users={users} isLoading={isLoadingUsers} error={usersError} onRefresh={fetchUsers} />} />
-                    <Route path="/users/:userId" element={<UserProfilePage />} />
                     <Route
                         path="/stage3"
                         element={
@@ -598,12 +829,14 @@ function App() {
                         path="/search"
                         element={
                             <SearchPage
+                                currentUserId={currentUser._id}
                                 searchTerm={searchTerm}
                                 setSearchTerm={setSearchTerm}
                                 filteredUsers={filteredUsers}
                                 isLoading={isLoadingUsers}
                                 error={usersError}
                                 onRefresh={fetchUsers}
+                                onViewProfile={openUserProfileModal}
                                 onAddEvent={openEventModal}
                             />
                         }
@@ -643,6 +876,16 @@ function App() {
                     isEventSubmitting={isEventSubmitting}
                     onSubmit={editingEvent ? handleEditEvent : handleCreateEvent}
                     onCancel={closeEventModal}
+                />
+            )}
+
+            {selectedProfileUser && (
+                <UserProfileModal
+                    user={selectedProfileUser}
+                    currentUser={currentUser}
+                    onUserChange={handleSelectedProfileUserChange}
+                    onCurrentUserUpdate={handleUserUpdate}
+                    onClose={closeUserProfileModal}
                 />
             )}
         </div>

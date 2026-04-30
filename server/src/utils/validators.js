@@ -58,6 +58,11 @@ const validateCreateEventInput = (creator, target, description, date, timeDurati
         };
     }
 
+    const eventDateValidation = validateEventDate(date);
+    if (!eventDateValidation.valid) {
+        return eventDateValidation;
+    }
+
     return { valid: true, durationNumber };
 };
 
@@ -74,7 +79,143 @@ const validateUpdateEventInput = (description, date, timeDuration, constraints) 
         };
     }
 
+    const eventDateValidation = validateEventDate(date);
+    if (!eventDateValidation.valid) {
+        return eventDateValidation;
+    }
+
     return { valid: true, durationNumber };
+};
+
+const validateCreatePublicEventInput = (creatorId, title, description, date, time) => {
+    if (!creatorId || !title || !description || !date || !time) {
+        return { valid: false, message: 'creatorId, title, description, date, and time are required.' };
+    }
+
+    if (!isValidObjectId(creatorId)) {
+        return { valid: false, message: 'Invalid creator ID.' };
+    }
+
+    if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(String(time).trim())) {
+        return { valid: false, message: 'Time must be in HH:MM format.' };
+    }
+
+    const eventDateValidation = validateEventDate(date);
+    if (!eventDateValidation.valid) {
+        return eventDateValidation;
+    }
+
+    return { valid: true };
+};
+
+const validateEventDate = (date) => {
+    if (!date) {
+        return { valid: false, message: 'Event date is required.' };
+    }
+
+    const eventDate = new Date(date);
+    if (Number.isNaN(eventDate.getTime())) {
+        return { valid: false, message: 'Invalid event date.' };
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    eventDate.setHours(0, 0, 0, 0);
+
+    if (eventDate < today) {
+        return { valid: false, message: 'Event date must be today or a future date.' };
+    }
+
+    return { valid: true };
+};
+
+const validateForgotPasswordInput = (email) => {
+    if (!email) {
+        return { valid: false, message: 'Email is required.' };
+    }
+
+    if (!isValidEmail(email)) {
+        return { valid: false, message: 'Invalid email format.' };
+    }
+
+    return { valid: true };
+};
+
+const validateResetPasswordInput = (email, otp, password, passwordConfirm) => {
+    if (!email || !otp || !password || !passwordConfirm) {
+        return { valid: false, message: 'Email, OTP, password, and confirm password are required.' };
+    }
+
+    if (!isValidEmail(email)) {
+        return { valid: false, message: 'Invalid email format.' };
+    }
+
+    if (!/^\d{6}$/.test(String(otp).trim())) {
+        return { valid: false, message: 'OTP must be a 6-digit number.' };
+    }
+
+    if (password !== passwordConfirm) {
+        return { valid: false, message: 'Passwords do not match.' };
+    }
+
+    if (password.length < 8) {
+        return { valid: false, message: 'Password must be at least 8 characters long.' };
+    }
+
+    return { valid: true };
+};
+
+const validateSessionInput = (userId, sessionVersion) => {
+    if (!userId) {
+        return { valid: false, message: 'User ID is required.' };
+    }
+
+    if (!isValidObjectId(userId)) {
+        return { valid: false, message: 'Invalid user ID.' };
+    }
+
+    if (sessionVersion === undefined || sessionVersion === null || Number.isNaN(Number(sessionVersion))) {
+        return { valid: false, message: 'Session version is required.' };
+    }
+
+    return { valid: true };
+};
+
+const validateFollowInput = (followerUserId, followeeUserId) => {
+    if (!followerUserId || !followeeUserId) {
+        return { valid: false, message: 'Follower user ID and followee user ID are required.' };
+    }
+
+    if (!isValidObjectId(followerUserId) || !isValidObjectId(followeeUserId)) {
+        return { valid: false, message: 'Invalid follower user ID or followee user ID.' };
+    }
+
+    if (String(followerUserId) === String(followeeUserId)) {
+        return { valid: false, message: 'You cannot follow yourself.' };
+    }
+
+    return { valid: true };
+};
+
+const validateDateOfBirth = (dateOfBirth) => {
+    if (!dateOfBirth) {
+        return { valid: true };
+    }
+
+    const birthDate = new Date(dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+
+    if (age < 16) {
+        return { valid: false, message: 'You must be at least 16 years old.' };
+    }
+
+    return { valid: true };
 };
 
 module.exports = {
@@ -82,6 +223,13 @@ module.exports = {
     isValidEmail,
     validateRegisterInput,
     validateLoginInput,
+    validateForgotPasswordInput,
+    validateResetPasswordInput,
+    validateSessionInput,
+    validateFollowInput,
     validateCreateEventInput,
+    validateCreatePublicEventInput,
     validateUpdateEventInput,
+    validateDateOfBirth,
+    validateEventDate,
 };

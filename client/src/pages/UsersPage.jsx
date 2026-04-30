@@ -1,4 +1,5 @@
 import React from 'react';
+import { getUserUniqueId } from '../utils/user';
 
 export function UsersPage({ users, isLoading, error, onRefresh }) {
     return (
@@ -29,6 +30,7 @@ export function UsersPage({ users, isLoading, error, onRefresh }) {
                         <thead>
                             <tr className="bg-indigo-50 text-indigo-700">
                                 <th className="p-3 font-semibold rounded-l-xl">Name</th>
+                                <th className="p-3 font-semibold">Unique ID</th>
                                 <th className="p-3 font-semibold">Email</th>
                                 <th className="p-3 font-semibold">Created</th>
                                 <th className="p-3 font-semibold rounded-r-xl">Updated</th>
@@ -38,6 +40,7 @@ export function UsersPage({ users, isLoading, error, onRefresh }) {
                             {users.map((user) => (
                                 <tr key={user._id} className="border-b border-indigo-100">
                                     <td className="p-3 text-gray-800">{user.name}</td>
+                                    <td className="p-3 text-gray-700" dir="ltr">{getUserUniqueId(user)}</td>
                                     <td className="p-3 text-gray-700">{user.email}</td>
                                     <td className="p-3 text-gray-700">{new Date(user.createdAt).toLocaleString()}</td>
                                     <td className="p-3 text-gray-700">{new Date(user.updatedAt).toLocaleString()}</td>

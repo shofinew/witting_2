@@ -1,19 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { EventSection } from '../components/EventSection';
 
-const isSameLocalDate = (value, today) => {
-    if (!value) {
-        return false;
-    }
-
-    const eventDate = new Date(value);
-
-    return eventDate.getFullYear() === today.getFullYear()
-        && eventDate.getMonth() === today.getMonth()
-        && eventDate.getDate() === today.getDate();
-};
-
-export function HomePage({
+export function TotalEventsPage({
     events,
     now,
     isLoading,
@@ -33,21 +21,20 @@ export function HomePage({
 
     const { comingEvents, goingEvents } = useMemo(() => {
         const publishedEvents = Array.isArray(events) ? events : [];
-        const todaysEvents = publishedEvents.filter((event) => isSameLocalDate(event.date, now));
 
         return {
-            comingEvents: todaysEvents.filter((event) => {
+            comingEvents: publishedEvents.filter((event) => {
                 const creatorId = event.creator?._id || event.creatorId;
                 return creatorId !== currentUserId;
             }),
-            goingEvents: todaysEvents.filter((event) => {
+            goingEvents: publishedEvents.filter((event) => {
                 const creatorId = event.creator?._id || event.creatorId;
                 return creatorId === currentUserId;
             }),
         };
-    }, [events, currentUserId, now]);
+    }, [events, currentUserId]);
 
-    const visibleEvents = activeTab === 'going' ? goingEvents : comingEvents;
+    const visibleEvents = activeTab === 'going' ? goingEvents : activeTab === 'total' ? totalEvents : comingEvents;
 
     return (
         <EventSection
@@ -66,6 +53,9 @@ export function HomePage({
             onPublish={onPublish}
             onArchive={onArchive}
             onStart={onStart}
+            hideStartAndArchive={true}
+            description="Your total event live here."
+            hideSerial={true}
             headerContent={
                 <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
                     <button

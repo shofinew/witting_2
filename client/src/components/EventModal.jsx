@@ -20,6 +20,7 @@ export function EventModal({
 }) {
     const isEditMode = mode === 'edit';
     const displayCreator = isEditMode ? creatorUser || currentUser : currentUser;
+    const minEventDate = new Date().toLocaleDateString('en-CA');
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -68,6 +69,7 @@ export function EventModal({
                                 onChange={(e) => setEventDate(e.target.value)}
                                 disabled={isEventSubmitting}
                                 type="date"
+                                min={minEventDate}
                                 className="w-full rounded-xl border border-indigo-200 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-gray-100 disabled:text-gray-500"
                             />
                         </div>
@@ -99,7 +101,7 @@ export function EventModal({
                         disabled={isEventSubmitting}
                         className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition disabled:cursor-not-allowed disabled:opacity-70"
                     >
-                        {isEventSubmitting ? (isEditMode ? 'Updating...' : 'Submitting...') : (isEditMode ? 'Ok' : 'Submit')}
+                        {isEventSubmitting ? (isEditMode ? 'Updating...' : 'Submitting...') : (isEditMode ? 'Update' : 'Submit')}
                     </button>
                     <button
                         type="button"

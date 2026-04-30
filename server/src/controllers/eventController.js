@@ -1,6 +1,6 @@
 const eventService = require('../services/eventService');
 const { asyncHandler } = require('../middleware/errorHandler');
-const { validateCreateEventInput, validateUpdateEventInput } = require('../utils/validators');
+const { validateCreateEventInput, validateCreatePublicEventInput, validateUpdateEventInput } = require('../utils/validators');
 const { DURATION_CONSTRAINTS } = require('../utils/constants');
 
 // Ensure ordered payload for event objects (creatorId, targetId, description)
@@ -8,16 +8,35 @@ const formatEventResponse = (event) => {
     const e = event.toObject ? event.toObject() : event;
     return {
         _id: e._id,
-        creatorId: e.creatorId,
-        targetId: e.targetId,
+        originalEventId: e.originalEventId,
+        creatorId: e.creatorId?._id || e.creatorId,
+        targetId: e.targetId?._id || e.targetId,
         creator: e.creatorId,
         target: e.targetId,
         description: e.description,
         date: e.date,
         timeDuration: e.timeDuration,
+        serialNo: e.serialNo,
         remainingSeconds: e.remainingSeconds,
         timerStartedAt: e.timerStartedAt,
         status: e.status,
+        archivedAt: e.archivedAt,
+        eventCreatedAt: e.eventCreatedAt,
+        createdAt: e.createdAt,
+        updatedAt: e.updatedAt,
+    };
+};
+
+const formatPublicEventResponse = (event) => {
+    const e = event.toObject ? event.toObject() : event;
+    return {
+        _id: e._id,
+        creatorId: e.creatorId?._id || e.creatorId,
+        creator: e.creatorId,
+        title: e.title,
+        description: e.description,
+        date: e.date,
+        time: e.time,
         createdAt: e.createdAt,
         updatedAt: e.updatedAt,
     };
@@ -72,6 +91,39 @@ const getEventsByStatus = asyncHandler(async (req, res) => {
     } catch (error) {
         const statusCode = error.statusCode || 500;
         const message = error.message || 'Server error while fetching events.';
+        return res.status(statusCode).json({ message });
+    }
+});
+
+const createPublicEvent = asyncHandler(async (req, res) => {
+    const { creatorId, title, description, date, time } = req.body;
+
+    try {
+        const validation = validateCreatePublicEventInput(creatorId, title, description, date, time);
+
+        if (!validation.valid) {
+            return res.status(400).json({ message: validation.message });
+        }
+
+        const event = await eventService.createPublicEvent(creatorId, title, description, date, time);
+        return res.status(201).json({
+            message: 'Public event created successfully.',
+            event: formatPublicEventResponse(event),
+        });
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        const message = error.message || 'Server error while creating public event.';
+        return res.status(statusCode).json({ message });
+    }
+});
+
+const getPublicEvents = asyncHandler(async (req, res) => {
+    try {
+        const events = await eventService.getPublicEvents();
+        return res.status(200).json({ events: events.map(formatPublicEventResponse) });
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        const message = error.message || 'Server error while fetching public events.';
         return res.status(statusCode).json({ message });
     }
 });
@@ -192,6 +244,8 @@ const deleteEvent = asyncHandler(async (req, res) => {
 module.exports = {
     createEvent,
     getEventsByStatus,
+    createPublicEvent,
+    getPublicEvents,
     updateEvent,
     advanceEvent,
     publishEvent,
