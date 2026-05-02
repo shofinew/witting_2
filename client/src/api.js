@@ -1,5 +1,25 @@
 import { API_URL } from './constants';
 
+// Safe JSON parser with proper error handling
+const safeJsonParse = async (response, fallbackMessage) => {
+    const contentType = response.headers.get('content-type');
+    
+    if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        throw new Error(
+            `Expected JSON but received ${contentType || 'unknown'}: ${text.substring(0, 100)}... API URL: ${API_URL}`
+        );
+    }
+
+    try {
+        return await response.json();
+    } catch (err) {
+        throw new Error(
+            `Failed to parse JSON response: ${err.message}. This usually means the server returned HTML instead of JSON. Check if the API is running at ${API_URL}`
+        );
+    }
+};
+
 // Improved API with proper error handling
 export const authAPI = {
     register: async (name, email, password, passwordConfirm) => {
@@ -13,7 +33,7 @@ export const authAPI = {
                 passwordConfirm,
             }),
         });
-        const data = await response.json();
+        const data = await safeJsonParse(response, 'Registration failed');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Registration failed');
@@ -30,7 +50,7 @@ export const authAPI = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password }),
         });
-        const data = await response.json();
+        const data = await safeJsonParse(response, 'Login failed');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Login failed');
@@ -47,7 +67,7 @@ export const authAPI = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email }),
         });
-        const data = await response.json();
+        const data = await safeJsonParse(response, 'Password reset request failed');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Password reset request failed');
@@ -64,7 +84,7 @@ export const authAPI = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, otp, password, passwordConfirm }),
         });
-        const data = await response.json();
+        const data = await safeJsonParse(response, 'Password reset failed');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Password reset failed');
@@ -81,7 +101,7 @@ export const authAPI = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId, sessionVersion }),
         });
-        const data = await response.json();
+        const data = await safeJsonParse(response, 'Session validation failed');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Session validation failed');
@@ -94,7 +114,7 @@ export const authAPI = {
 
     getAuditLogs: async (userId) => {
         const response = await fetch(`${API_URL}/audit-logs/${userId}`);
-        const data = await response.json();
+        const data = await safeJsonParse(response, 'Failed to load audit logs');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Failed to load audit logs');
@@ -112,7 +132,7 @@ export const authAPI = {
         }
 
         const response = await fetch(`${API_URL}/users${params.toString() ? `?${params.toString()}` : ''}`);
-        const data = await response.json();
+        const data = await safeJsonParse(response, 'Failed to load users');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Failed to load users');
@@ -129,7 +149,7 @@ export const authAPI = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(updates),
         });
-        const data = await response.json();
+        const data = await safeJsonParse(response, 'Profile update failed');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Profile update failed');
@@ -149,7 +169,7 @@ export const authAPI = {
                 followeeUserId,
             }),
         });
-        const data = await response.json();
+        const data = await safeJsonParse(response, 'Failed to update follow status');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Failed to update follow status');
@@ -173,7 +193,7 @@ export const userAPI = {
         }
 
         const response = await fetch(`${API_URL}/users/${userId}${params.toString() ? `?${params.toString()}` : ''}`);
-        const data = await response.json();
+        const data = await safeJsonParse(response, 'Failed to load user');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Failed to load user');
@@ -193,7 +213,7 @@ export const eventAPI = {
         }
 
         const response = await fetch(`${API_URL}/events?${params.toString()}`);
-        const data = await response.json();
+        const data = await safeJsonParse(response, 'Failed to load events');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Failed to load events');
@@ -216,7 +236,7 @@ export const eventAPI = {
                 timeDuration,
             }),
         });
-        const data = await response.json();
+        const data = await safeJsonParse(response, 'Failed to create event');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Failed to create event');
@@ -237,7 +257,7 @@ export const eventAPI = {
                 timeDuration,
             }),
         });
-        const data = await response.json();
+        const data = await safeJsonParse(response, 'Failed to update event');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Failed to update event');
@@ -256,7 +276,7 @@ export const eventAPI = {
                 actorUserId,
             }),
         });
-        const data = await response.json();
+        const data = await safeJsonParse(response, 'Failed to delete event');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Failed to delete event');
@@ -272,7 +292,7 @@ export const eventAPI = {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
         });
-        const data = await response.json();
+        const data = await safeJsonParse(response, 'Failed to advance event');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Failed to advance event');
@@ -291,7 +311,7 @@ export const eventAPI = {
                 actorUserId,
             }),
         });
-        const data = await response.json();
+        const data = await safeJsonParse(response, 'Failed to publish event');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Failed to publish event');
@@ -310,7 +330,7 @@ export const eventAPI = {
                 actorUserId,
             }),
         });
-        const data = await response.json();
+        const data = await safeJsonParse(response, 'Failed to archive event');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Failed to archive event');
@@ -329,7 +349,7 @@ export const eventAPI = {
                 actorUserId,
             }),
         });
-        const data = await response.json();
+        const data = await safeJsonParse(response, 'Failed to start event timer');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Failed to start event timer');
@@ -344,7 +364,7 @@ export const eventAPI = {
 export const publicEventAPI = {
     getAll: async () => {
         const response = await fetch(`${API_URL}/public-events`);
-        const data = await response.json();
+        const data = await safeJsonParse(response, 'Failed to load public events');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Failed to load public events');
@@ -367,7 +387,7 @@ export const publicEventAPI = {
                 time,
             }),
         });
-        const data = await response.json();
+        const data = await safeJsonParse(response, 'Failed to create public event');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Failed to create public event');
