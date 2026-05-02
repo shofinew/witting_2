@@ -21,8 +21,9 @@ app.use(cors({
         // Allow localhost origins for development
         if (origin.startsWith('http://localhost:')) return callback(null, true);
 
-        // Allow the configured CLIENT_URL
+        // Allow the configured CLIENT_URL and vercel deployments
         if (origin === CLIENT_URL) return callback(null, true);
+        if (origin && origin.includes('vercel.app')) return callback(null, true);
 
         return callback(new Error('Not allowed by CORS'));
     },
@@ -32,7 +33,21 @@ app.use(express.json());
 
 // Health Check Route
 app.get('/', (req, res) => {
-    res.json({ message: 'Server is running!' });
+    res.json({ 
+        message: 'Server is running!',
+        clientUrl: CLIENT_URL,
+        timestamp: new Date().toISOString()
+    });
+});
+
+// CORS Debug Route
+app.get('/api/debug', (req, res) => {
+    res.json({
+        message: 'CORS is working!',
+        origin: req.headers.origin,
+        clientUrl: CLIENT_URL,
+        allowedDomains: [CLIENT_URL, 'vercel.app', 'localhost']
+    });
 });
 
 // API Routes
