@@ -1,4 +1,20 @@
-export const API_URL = import.meta.env.VITE_API_URL || '/api';
+const normalizeApiUrl = (rawApiUrl) => {
+    const trimmedApiUrl = (rawApiUrl || '/api').trim();
+
+    if (trimmedApiUrl === '/api') {
+        return '/api';
+    }
+
+    const withoutTrailingSlashes = trimmedApiUrl.replace(/\/+$/, '');
+
+    if (withoutTrailingSlashes.endsWith('/api')) {
+        return withoutTrailingSlashes;
+    }
+
+    return `${withoutTrailingSlashes}/api`;
+};
+
+export const API_URL = normalizeApiUrl(import.meta.env.VITE_API_URL);
 
 export const NAV_ITEMS = [
     { id: 'users', label: 'All Users' },

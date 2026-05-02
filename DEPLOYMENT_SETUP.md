@@ -18,6 +18,10 @@ Go to **Project Settings → Environment Variables** and add:
 VITE_API_URL = https://your-backend-name.onrender.com/api
 ```
 
+Important:
+`VITE_API_URL` must point to the API base. If your backend is `https://witting-2.onrender.com`, use `https://witting-2.onrender.com/api`.
+The client now also normalizes `https://witting-2.onrender.com` to `https://witting-2.onrender.com/api`, but setting the full `/api` URL explicitly is still preferred.
+
 ### 2. Build Settings
 
 - **Build Command**: `npm run build`
