@@ -272,6 +272,7 @@ export function PublicPage({ currentUser }) {
     const [error, setError] = useState('');
     const [events, setEvents] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [refreshNonce, setRefreshNonce] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [activeEventActionId, setActiveEventActionId] = useState(null);
     const [activeEventActionType, setActiveEventActionType] = useState(null);
@@ -305,13 +306,11 @@ export function PublicPage({ currentUser }) {
         };
 
         loadPublicEvents();
-        const refreshTimer = window.setInterval(loadPublicEvents, 30000);
 
         return () => {
             isMounted = false;
-            window.clearInterval(refreshTimer);
         };
-    }, [currentUser?._id, location.search]);
+    }, [currentUser?._id, location.search, refreshNonce]);
 
     const closeModal = () => {
         setIsModalOpen(false);
@@ -488,13 +487,23 @@ export function PublicPage({ currentUser }) {
                             Create and manage public-facing events from here.
                         </p>
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => setIsModalOpen(true)}
-                        className="rounded-xl bg-[#161080] px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
-                    >
-                        Create Event
-                    </button>
+                    <div className="flex shrink-0 flex-wrap gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setRefreshNonce((value) => value + 1)}
+                            disabled={isLoading}
+                            className="rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {isLoading ? 'Refreshing...' : 'Refresh'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setIsModalOpen(true)}
+                            className="rounded-xl bg-[#161080] px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+                        >
+                            Create Event
+                        </button>
+                    </div>
                 </div>
 
                 {error && !isModalOpen && (
