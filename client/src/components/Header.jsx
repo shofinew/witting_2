@@ -127,7 +127,7 @@ export function Header({
             </div>
 
             <div className="mb-1 rounded-[24px] border border-slate-200/80 bg-white/90 px-2 py-1 shadow-[0_12px_40px_rgba(15,23,42,0.10)] backdrop-blur-xl sm:px-3 sm:py-1.5">
-                <div className="flex flex-wrap items-center justify-center gap-1.5">
+                <div className="flex flex-nowrap items-center justify-start gap-1.5 overflow-x-auto overscroll-x-contain pb-0.5 [scrollbar-width:thin] sm:flex-wrap sm:justify-center sm:overflow-visible sm:pb-0">
                     {visibleNavItems.map((item) => {
                         const isActive = activePage === item.id;
                         const badgeCount = navBadgeIds.has(item.id) ? (eventCounts[item.id] || 0) : null;
@@ -136,7 +136,7 @@ export function Header({
                                 key={item.id}
                                 to={`/${item.id}`}
                                 onClick={onClearMessages}
-                                className={`group relative flex min-h-[38px] items-center justify-center rounded-2xl px-3 py-1.5 text-sm font-semibold transition-all duration-200 sm:min-w-[92px] sm:px-4 sm:text-[15px] ${isActive
+                                className={`group relative flex min-h-[38px] shrink-0 items-center justify-center rounded-2xl px-3 py-1.5 text-sm font-semibold transition-all duration-200 sm:min-w-[92px] sm:px-4 sm:text-[15px] ${isActive
                                     ? 'bg-[#161080] text-white shadow-lg shadow-indigo-500/20'
                                     : 'bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
                                     }`}

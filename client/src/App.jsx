@@ -220,7 +220,23 @@ function App() {
         const runSessionCheck = async () => {
             try {
                 const result = await authAPI.validateSession(currentUser._id, currentUser.sessionVersion || 0);
-                if (!isMounted || result.valid) {
+                if (!isMounted) {
+                    return;
+                }
+
+                if (result.valid) {
+                    // Refresh the cached user on every app start. This keeps role
+                    // based navigation correct when an older mobile session was
+                    // saved before roles were added or changed.
+                    try {
+                        const userResult = await userAPI.getById(currentUser._id, currentUser._id);
+                        if (isMounted && userResult.user) {
+                            setCurrentUser((previousUser) => ({ ...previousUser, ...userResult.user }));
+                        }
+                    } catch {
+                        // A valid session can continue using the cached user if
+                        // this non-critical profile refresh is temporarily unavailable.
+                    }
                     return;
                 }
 
@@ -247,7 +263,7 @@ function App() {
         return () => {
             isMounted = false;
         };
-    }, [currentUser, navigate]);
+    }, [currentUser?._id, currentUser?.sessionVersion, navigate]);
 
     useEffect(() => {
         const timer = window.setInterval(() => setNow(new Date()), 1000);
