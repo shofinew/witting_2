@@ -39,6 +39,11 @@ const formatPublicEventResponse = (event, viewerUserId = null) => {
     const e = event.toObject ? event.toObject() : event;
     const likedBy = Array.isArray(e.likedBy) ? e.likedBy : [];
     const viewerId = viewerUserId ? String(viewerUserId) : '';
+    const startDate = e.date || e.startDate || null;
+    const startTime = e.time || e.startTime || '';
+    const endDate = e.endDate || e.finishDate || null;
+    const endTime = e.endTime || e.finishTime || '';
+    const duration = e.duration ?? e.timeDuration ?? null;
 
     return {
         _id: e._id,
@@ -46,12 +51,14 @@ const formatPublicEventResponse = (event, viewerUserId = null) => {
         creator: e.creatorId,
         title: e.title,
         description: e.description,
-        location: e.location,
-        duration: e.duration,
-        date: e.date,
-        time: e.time,
-        endDate: e.endDate,
-        endTime: e.endTime,
+        location: e.location || e.venue || '',
+        duration,
+        date: startDate,
+        time: startTime,
+        startDate,
+        startTime,
+        endDate,
+        endTime,
         likeCount: likedBy.length,
         likedByCurrentUser: viewerId
             ? likedBy.some((userId) => String(userId?._id || userId) === viewerId)

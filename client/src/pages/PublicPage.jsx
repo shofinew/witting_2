@@ -357,6 +357,21 @@ export function PublicPage({ currentUser }) {
         return timeValue ? `${dateLabel} ${String(timeValue).trim()}` : dateLabel;
     };
 
+    const getPublicEventDuration = (event) => {
+        const savedDuration = Number(event.duration ?? event.timeDuration);
+        if (Number.isFinite(savedDuration) && savedDuration > 0) {
+            return savedDuration;
+        }
+
+        const start = new Date(`${event.startDate || event.date || ''}T${event.startTime || event.time || '00:00'}`);
+        const end = new Date(`${event.endDate || ''}T${event.endTime || '00:00'}`);
+        if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end > start) {
+            return Math.round((end - start) / 60000);
+        }
+
+        return null;
+    };
+
     const handleCreateEvent = () => {
         const run = async () => {
             if (!currentUser?._id) {
@@ -518,22 +533,18 @@ export function PublicPage({ currentUser }) {
                                         <p className="text-sm text-slate-500">
                                             Created by: {event.creator?.name || 'Unknown user'}
                                         </p>
-                                        {event.location && (
-                                            <p className="text-sm text-slate-500">
-                                                Location: {event.location}
-                                            </p>
-                                        )}
-                                        {event.duration != null && (
-                                            <p className="text-sm text-slate-500">
-                                                Duration: {formatDuration(event.duration)}
-                                            </p>
-                                        )}
+                                        <p className="text-sm text-slate-500">
+                                            Location: {event.location || event.venue || 'Not specified'}
+                                        </p>
+                                        <p className="text-sm text-slate-500">
+                                            Duration: {formatDuration(getPublicEventDuration(event))}
+                                        </p>
                                     </div>
                                     <div className="flex shrink-0 flex-col gap-3">
                                         <div className="rounded-xl bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700">
-                                            <span>Start: {formatPublicEventDateTime(event.date, event.time)}</span>
+                                            <span>Start: {formatPublicEventDateTime(event.startDate || event.date, event.startTime || event.time)}</span>
                                             <br />
-                                            <span>End: {formatPublicEventDateTime(event.endDate, event.endTime)}</span>
+                                            <span>End: {formatPublicEventDateTime(event.endDate || event.finishDate, event.endTime || event.finishTime)}</span>
                                         </div>
                                         <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
                                             {event.likeCount || 0} liked it
