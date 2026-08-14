@@ -137,15 +137,26 @@ function PublicEventModal({
         }
     };
 
+    const handleStartDateChange = (nextDate) => {
+        setStartDate(nextDate);
+        if (!endDate || endDate < nextDate) {
+            setEndDate(nextDate);
+        }
+    };
+
     const setEndDateTo = (daysFromToday) => {
-        setEndDate(getDateAfterDays(daysFromToday));
+        const nextDate = getDateAfterDays(daysFromToday);
+        setEndDate(startDate && startDate > nextDate ? startDate : nextDate);
     };
 
     return (
-        <div className="fixed inset-x-3 top-20 z-50 flex justify-center pointer-events-none sm:top-24">
-            <div className="pointer-events-auto w-full max-w-[22.5rem] overflow-y-auto rounded-2xl border border-indigo-100 bg-white p-3 shadow-2xl max-h-[calc(100vh-6rem)]">
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/30 px-3 py-6 pointer-events-none sm:py-10">
+            <div className="pointer-events-auto w-full max-w-md overflow-y-auto rounded-2xl border border-indigo-100 bg-white p-4 shadow-2xl max-h-[calc(100vh-3rem)] sm:p-5 sm:max-h-[calc(100vh-5rem)]">
                 <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-lg font-bold text-indigo-700">Create Public Event</h3>
+                    <div>
+                        <h3 className="text-lg font-bold text-indigo-700">Create Public Event</h3>
+                        <p className="mt-0.5 text-xs text-slate-500">Add the details people need to attend.</p>
+                    </div>
                     <button
                         type="button"
                         onClick={onCancel}
@@ -163,62 +174,67 @@ function PublicEventModal({
                     </div>
                 )}
 
-                <div className="mt-2 space-y-1.5">
+                <div className="mt-4 space-y-3">
                     <div>
-                        <label className="mb-1 block text-sm font-semibold text-indigo-700">Title</label>
+                        <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-indigo-700">Title</label>
                         <input
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                             type="text"
                             disabled={isSubmitting}
-                            className="w-full rounded-xl border border-indigo-200 px-3 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                            className="w-full rounded-xl border border-indigo-200 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                             placeholder="Write event title..."
                         />
                     </div>
                     <div>
-                        <label className="mb-1 block text-sm font-semibold text-indigo-700">Location</label>
+                        <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-indigo-700">Location</label>
                         <input
                             value={location}
                             onChange={(e) => setLocation(e.target.value)}
                             type="text"
                             disabled={isSubmitting}
-                            className="w-full rounded-xl border border-indigo-200 px-3 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                            className="w-full rounded-xl border border-indigo-200 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                             placeholder="Enter event location..."
                         />
                     </div>
                     <div>
-                        <label className="mb-1 block text-sm font-semibold text-indigo-700">Description</label>
+                        <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-indigo-700">Description</label>
                         <textarea
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
                             rows={2}
                             disabled={isSubmitting}
-                            className="w-full rounded-xl border border-indigo-200 px-3 py-1.5 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                            className="w-full rounded-xl border border-indigo-200 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                             placeholder="Write event details..."
                         />
                     </div>
-                    <div className="grid grid-cols-2 gap-1.5">
-                        <div>
-                            <label htmlFor="public-event-start-date" className="mb-1 block text-sm font-semibold text-indigo-700">Start date</label>
+                    <fieldset className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3">
+                        <legend className="px-1 text-xs font-bold uppercase tracking-wide text-indigo-700">Starts</legend>
+                        <div className="space-y-2">
+                            <div>
+                                <label htmlFor="public-event-start-date" className="mb-1 block text-xs font-semibold text-slate-600">Date</label>
                             <input
                                 id="public-event-start-date"
                                 value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
+                                onChange={(e) => handleStartDateChange(e.target.value)}
                                 type="date"
                                 min={minEventDate}
                                 disabled={isSubmitting}
-                                className="w-full rounded-xl border border-indigo-200 px-2.5 py-2 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                className="w-full rounded-xl border border-indigo-200 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                             />
-                            <div className="mt-1.5 flex gap-2">
-                                <button type="button" onClick={() => setStartDateTo(0)} disabled={isSubmitting} className="rounded-lg border border-indigo-200 px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60">Today</button>
-                                <button type="button" onClick={() => setStartDateTo(1)} disabled={isSubmitting} className="rounded-lg border border-indigo-200 px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60">Tomorrow</button>
+                                <div className="mt-1.5 flex gap-2">
+                                    <button type="button" onClick={() => setStartDateTo(0)} disabled={isSubmitting} className="rounded-lg border border-indigo-200 bg-white px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60">Today</button>
+                                    <button type="button" onClick={() => setStartDateTo(1)} disabled={isSubmitting} className="rounded-lg border border-indigo-200 bg-white px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60">Tomorrow</button>
+                                </div>
                             </div>
+                            <TimePicker label="Time" value={startTime} onChange={setStartTime} disabled={isSubmitting} />
                         </div>
-                        <TimePicker label="Start time" value={startTime} onChange={setStartTime} disabled={isSubmitting} />
-                    </div>
-                    <div className="grid grid-cols-2 gap-1.5">
-                        <div>
-                            <label htmlFor="public-event-end-date" className="mb-1 block text-sm font-semibold text-indigo-700">End date</label>
+                    </fieldset>
+                    <fieldset className="rounded-xl border border-fuchsia-100 bg-fuchsia-50/50 p-3">
+                        <legend className="px-1 text-xs font-bold uppercase tracking-wide text-fuchsia-700">Ends</legend>
+                        <div className="space-y-2">
+                            <div>
+                                <label htmlFor="public-event-end-date" className="mb-1 block text-xs font-semibold text-slate-600">Date</label>
                             <input
                                 id="public-event-end-date"
                                 value={endDate}
@@ -226,15 +242,16 @@ function PublicEventModal({
                                 type="date"
                                 min={startDate || minEventDate}
                                 disabled={isSubmitting}
-                                className="w-full rounded-xl border border-indigo-200 px-2.5 py-2 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                className="w-full rounded-xl border border-fuchsia-200 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-fuchsia-400"
                             />
-                            <div className="mt-1.5 flex gap-2">
-                                <button type="button" onClick={() => startDate && setEndDate(startDate)} disabled={isSubmitting || !startDate} className="rounded-lg border border-indigo-200 px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60">Same day</button>
-                                <button type="button" onClick={() => setEndDateTo(1)} disabled={isSubmitting} className="rounded-lg border border-indigo-200 px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60">Tomorrow</button>
+                                <div className="mt-1.5 flex gap-2">
+                                    <button type="button" onClick={() => startDate && setEndDate(startDate)} disabled={isSubmitting || !startDate} className="rounded-lg border border-fuchsia-200 bg-white px-2.5 py-1 text-xs font-semibold text-fuchsia-700 hover:bg-fuchsia-50 disabled:opacity-60">Same day</button>
+                                    <button type="button" onClick={() => setEndDateTo(1)} disabled={isSubmitting} className="rounded-lg border border-fuchsia-200 bg-white px-2.5 py-1 text-xs font-semibold text-fuchsia-700 hover:bg-fuchsia-50 disabled:opacity-60">Tomorrow</button>
+                                </div>
                             </div>
+                            <TimePicker label="Time" value={endTime} onChange={setEndTime} disabled={isSubmitting} />
                         </div>
-                        <TimePicker label="End time" value={endTime} onChange={setEndTime} disabled={isSubmitting} />
-                    </div>
+                    </fieldset>
                 </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-1.5">
@@ -386,6 +403,12 @@ export function PublicPage({ currentUser }) {
             const startDateTime = new Date(`${startDate}T${startTime}`);
             if (Number.isNaN(startDateTime.getTime()) || startDateTime <= new Date()) {
                 setError('Start date and time must be in the future.');
+                return;
+            }
+
+            const endDateTime = new Date(`${endDate}T${endTime}`);
+            if (Number.isNaN(endDateTime.getTime()) || endDateTime <= startDateTime) {
+                setError('End date and time must be after the start date and time.');
                 return;
             }
 
