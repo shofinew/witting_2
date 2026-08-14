@@ -1,7 +1,12 @@
 const mongoose = require('mongoose');
 
-const publicEventSchema = new mongoose.Schema(
+const publicArchivedSchema = new mongoose.Schema(
     {
+        originalPublicEventId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'PublicEvent',
+            required: true,
+        },
         creatorId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
@@ -51,12 +56,29 @@ const publicEventSchema = new mongoose.Schema(
                 ref: 'User',
             },
         ],
+        archivedAt: {
+            type: Date,
+            default: Date.now,
+        },
+        createdAt: {
+            type: Date,
+            required: true,
+        },
+        updatedAt: {
+            type: Date,
+            required: true,
+        },
+        status: {
+            type: String,
+            enum: ['archived'],
+            default: 'archived',
+        },
     },
     {
-        timestamps: true,
-        collection: 'PublicEvent',
+        timestamps: false,
+        collection: 'PublicArchivedEvent',
         versionKey: '__v',
     }
 );
 
-module.exports = mongoose.model('PublicEvent', publicEventSchema);
+module.exports = mongoose.model('PublicArchived', publicArchivedSchema);

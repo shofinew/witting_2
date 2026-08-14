@@ -7,3 +7,8 @@ export function getUserUniqueId(user) {
 
     return String(uniqueId);
 }
+
+export function canManageUsers(user) {
+    const normalizedRole = String(user?.role || '').trim().toLowerCase();
+    return normalizedRole === 'admin' || normalizedRole === 'superadmin';
+}

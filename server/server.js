@@ -5,12 +5,20 @@ const cors = require('cors');
 const connectDB = require('./src/config/db.js');
 const authRoutes = require('./src/routes/auth.js');
 const eventRoutes = require('./src/routes/event.js');
+const notificationRoutes = require('./src/routes/notification.js');
 const { errorHandler } = require('./src/middleware/errorHandler');
 const { apiRateLimiter } = require('./src/middleware/rateLimit');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
+
+// Use the real client IP only when the deployment explicitly has a trusted
+// reverse proxy. This avoids one proxy address becoming every user's bucket.
+const trustProxy = process.env.TRUST_PROXY === 'true'
+    ? 1
+    : (process.env.TRUST_PROXY === 'false' ? false : process.env.NODE_ENV === 'production' ? 1 : false);
+app.set('trust proxy', trustProxy);
 
 // Middleware
 app.use(cors({
@@ -30,6 +38,7 @@ app.use(cors({
     credentials: true
 }));
 app.use(express.json());
+app.disable('x-powered-by');
 
 // Health Check Route
 app.get('/', (req, res) => {
@@ -54,6 +63,7 @@ app.get('/api/debug', (req, res) => {
 app.use('/api', apiRateLimiter);
 app.use('/api', authRoutes);
 app.use('/api', eventRoutes);
+app.use('/api', notificationRoutes);
 
 // Error Handler Middleware (must be last)
 app.use(errorHandler);

@@ -2,8 +2,10 @@ import React from 'react';
 
 export function SearchPage({
     currentUserId,
-    searchTerm,
-    setSearchTerm,
+    searchInput,
+    setSearchInput,
+    searchedUniqueId,
+    onSearch,
     filteredUsers,
     isLoading,
     error,
@@ -27,32 +29,44 @@ export function SearchPage({
                 </button>
             </div>
 
-            <div className="mb-5">
+            <form
+                className="mb-5 flex flex-col gap-3 sm:flex-row"
+                onSubmit={(event) => {
+                    event.preventDefault();
+                    onSearch();
+                }}
+            >
                 <input
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full px-4 py-3 border border-indigo-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    className="w-full flex-1 rounded-xl border border-indigo-200 px-4 py-3 shadow-sm transition focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400"
                     type="text"
                     placeholder="Search by unique ID..."
                 />
-            </div>
+                <button
+                    type="submit"
+                    className="rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white transition hover:bg-indigo-700"
+                >
+                    Search
+                </button>
+            </form>
 
             {error && <div className="mb-4 p-3 text-sm text-red-900 bg-red-100/90 rounded-xl border border-red-200 shadow-sm">{error}</div>}
 
             {isLoading ? (
                 <p className="text-indigo-700 font-medium">Loading users...</p>
-            ) : !searchTerm.trim() ? (
+            ) : !searchedUniqueId.trim() ? (
                 <p className="text-gray-600">Enter a unique ID to search for users.</p>
             ) : filteredUsers.length === 0 ? (
                 <p className="text-gray-600">No matching users found.</p>
             ) : (
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                <div className="overflow-x-auto rounded-2xl border border-indigo-100">
+                    <table className="w-full min-w-[560px] text-left border-collapse">
                         <thead>
                             <tr className="bg-indigo-50 text-indigo-700">
-                                <th className="p-3 font-semibold rounded-l-xl">Name</th>
+                                <th className="p-3 font-semibold">Name</th>
                                 <th className="p-3 font-semibold">Profession</th>
-                                <th className="p-3 font-semibold rounded-r-xl">Action</th>
+                                <th className="p-3 font-semibold">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -60,15 +74,15 @@ export function SearchPage({
                                 const isSameUser = currentUserId === user._id;
 
                                 return (
-                                    <tr key={user._id} className="border-b border-indigo-100">
-                                    <td className="p-3 text-gray-800">{user.name}</td>
+                                    <tr key={user._id} className="border-b border-indigo-100 last:border-b-0">
+                                    <td className="p-3 font-semibold text-gray-800">{user.name}</td>
                                     <td className="p-3 text-gray-700">{user.profession || 'Not provided'}</td>
                                     <td className="p-3">
                                         <div className="flex flex-wrap gap-2">
                                             <button
                                                 type="button"
                                                 onClick={() => onViewProfile(user)}
-                                                className="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition"
+                                                className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
                                             >
                                                 View Profile
                                             </button>
@@ -76,7 +90,7 @@ export function SearchPage({
                                                 type="button"
                                                 disabled={isSameUser}
                                                 onClick={() => onAddEvent(user)}
-                                                className="px-3 py-2 rounded-lg bg-green-400 text-white text-sm font-semibold hover:bg-green-500 transition disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-600"
+                                                className="rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-600"
                                                 title={isSameUser ? 'You cannot create an event for yourself.' : 'Create event'}
                                             >
                                                 Create Event

@@ -10,13 +10,13 @@ import { SearchPage } from './pages/SearchPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { StagePage } from './pages/StagePage';
 import { PublicPage } from './pages/PublicPage';
-import { FamilyPage } from './pages/FamilyPage';
+import { SettingPage } from './pages/SettingPage';
 import { FeedbackPage } from './pages/FeedbackPage';
 import { UserProfilePage } from './pages/UserProfilePage';
 import { TotalEventsPage } from './pages/TotalEventsPage';
 import { PAGE_TO_STATUS } from './constants';
-import { authAPI, userAPI, eventAPI } from './api';
-import { getUserUniqueId } from './utils/user';
+import { authAPI, userAPI, eventAPI, notificationAPI, setAccessToken, clearAccessToken, getAccessToken } from './api';
+import { canManageUsers, getUserUniqueId } from './utils/user';
 
 const isSameLocalDate = (value, today) => {
     if (!value) {
@@ -30,11 +30,36 @@ const isSameLocalDate = (value, today) => {
         && eventDate.getDate() === today.getDate();
 };
 
+const isExpiredByDate = (value, today) => {
+    if (!value) {
+        return false;
+    }
+
+    const eventDate = new Date(value);
+    const normalizedEventDate = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+    const normalizedToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    return normalizedEventDate < normalizedToday;
+};
+
+const isTodayOrFutureDate = (value, today) => {
+    if (!value) {
+        return false;
+    }
+
+    const eventDate = new Date(value);
+    const normalizedEventDate = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+    const normalizedToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    return normalizedEventDate >= normalizedToday;
+};
+
 function App() {
     const location = useLocation();
     const navigate = useNavigate();
     const path = location.pathname.replace(/^\//, '');
-    const activePage = path === '' ? 'home' : path;
+    const overridden = location && location.state && location.state.activePageOverride;
+    const activePage = overridden ? overridden : (path === '' ? 'home' : path);
 
     const [now, setNow] = useState(() => new Date());
     const [authView, setAuthView] = useState('login');
@@ -57,15 +82,17 @@ function App() {
     const [currentUser, setCurrentUser] = useState(() => {
         try {
             const savedUser = localStorage.getItem('wittingUser');
-            return savedUser ? JSON.parse(savedUser) : null;
+            return savedUser && getAccessToken() ? JSON.parse(savedUser) : null;
         } catch {
             return null;
         }
     });
+    const canViewAllUsers = canManageUsers(currentUser);
     const [users, setUsers] = useState([]);
     const [usersError, setUsersError] = useState('');
     const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchInput, setSearchInput] = useState('');
+    const [searchedUniqueId, setSearchedUniqueId] = useState('');
     const [eventsByStatus, setEventsByStatus] = useState({
         stage3: [],
         stage2: [],
@@ -90,6 +117,7 @@ function App() {
     const [eventUser, setEventUser] = useState(null);
     const [editingEvent, setEditingEvent] = useState(null);
     const [eventDescription, setEventDescription] = useState('');
+    const [eventMessage, setEventMessage] = useState('');
     const [eventDate, setEventDate] = useState('');
     const [eventDuration, setEventDuration] = useState('');
     const [eventError, setEventError] = useState('');
@@ -100,6 +128,8 @@ function App() {
     const [activeEventActionId, setActiveEventActionId] = useState('');
     const [activeEventActionType, setActiveEventActionType] = useState('');
     const [selectedProfileUser, setSelectedProfileUser] = useState(null);
+    const [notifications, setNotifications] = useState([]);
+    const previousUserRef = React.useRef(currentUser);
 
     const isPastEventDate = (value) => {
         if (!value) {
@@ -122,12 +152,63 @@ function App() {
         setOtpExpiresAt('');
     };
 
+    const clearAuthFormState = () => {
+        setRegisterName('');
+        setRegisterEmail('');
+        setRegisterPassword('');
+        setRegisterPasswordConfirm('');
+        setLoginEmail('');
+        setLoginPassword('');
+        setAuthError('');
+        setAuthSuccess('');
+        clearPasswordResetState();
+    };
+
     useEffect(() => {
         if (!currentUser) {
             return;
         }
         localStorage.setItem('wittingUser', JSON.stringify(currentUser));
     }, [currentUser]);
+
+    useEffect(() => {
+        if (previousUserRef.current && !currentUser) {
+            setAuthView('login');
+            clearAuthFormState();
+        }
+
+        previousUserRef.current = currentUser;
+    }, [currentUser]);
+
+    useEffect(() => {
+        const handleAuthExpired = () => {
+            setCurrentUser(null);
+            setAuthView('login');
+            setAuthError('Your session has expired. Please log in again.');
+            setAuthSuccess('');
+            localStorage.removeItem('wittingUser');
+            navigate('/');
+        };
+
+        window.addEventListener('witting:auth-expired', handleAuthExpired);
+        const handleAccountPaused = () => {
+            setCurrentUser((previousUser) => {
+                if (!previousUser) {
+                    return previousUser;
+                }
+
+                const pausedUser = { ...previousUser, isPaused: true };
+                localStorage.setItem('wittingUser', JSON.stringify(pausedUser));
+                return pausedUser;
+            });
+        };
+
+        window.addEventListener('witting:account-paused', handleAccountPaused);
+        return () => {
+            window.removeEventListener('witting:auth-expired', handleAuthExpired);
+            window.removeEventListener('witting:account-paused', handleAccountPaused);
+        };
+    }, [navigate]);
 
     useEffect(() => {
         if (!currentUser?._id) {
@@ -147,10 +228,17 @@ function App() {
                 setAuthView('login');
                 setAuthError(result.reason || 'Your session has expired.');
                 setAuthSuccess('');
+                clearAccessToken();
                 localStorage.removeItem('wittingUser');
                 navigate('/');
-            } catch {
-                // Keep the local session when validation cannot be reached.
+            } catch (error) {
+                if (error.statusCode === 401) {
+                    setCurrentUser(null);
+                    clearAccessToken();
+                    localStorage.removeItem('wittingUser');
+                    setAuthError(error.message || 'Your session has expired.');
+                    navigate('/');
+                }
             }
         };
 
@@ -197,9 +285,66 @@ function App() {
         }
     };
 
+    const fetchNotifications = async () => {
+        if (!currentUser?._id) {
+            setNotifications([]);
+            return;
+        }
+
+        try {
+            const data = await notificationAPI.getAll();
+            setNotifications(data.notifications || []);
+        } catch {
+            setNotifications([]);
+        }
+    };
+
+    const handleMarkNotificationRead = async (notificationId) => {
+        try {
+            await notificationAPI.markRead(notificationId);
+            setNotifications((previous) => previous.map((notification) => (
+                notification._id === notificationId
+                    ? { ...notification, isRead: true }
+                    : notification
+            )));
+        } catch {
+            // Keep the notification visible if the server update fails.
+        }
+    };
+
+    const handleMarkAllNotificationsRead = async () => {
+        try {
+            await notificationAPI.markAllRead();
+            setNotifications((previous) => previous.map((notification) => ({ ...notification, isRead: true })));
+        } catch {
+            // Keep the unread state if the server update fails.
+        }
+    };
+
+    useEffect(() => {
+        if (!currentUser?._id) {
+            return undefined;
+        }
+
+        fetchNotifications();
+        const notificationRefreshTimer = window.setInterval(fetchNotifications, 30000);
+        return () => window.clearInterval(notificationRefreshTimer);
+    }, [currentUser]);
+
     const handleUserUpdate = (updatedUser) => {
         setCurrentUser(updatedUser);
         localStorage.setItem('wittingUser', JSON.stringify(updatedUser));
+    };
+
+    const handleToggleUserPause = async (user) => {
+        try {
+            const data = await userAPI.setPaused(user._id, !user.isPaused);
+            setUsers((previousUsers) => previousUsers.map((entry) => (
+                entry._id === data.user._id ? data.user : entry
+            )));
+        } catch (err) {
+            setUsersError(err.message || 'Could not update account status.');
+        }
     };
 
     useEffect(() => {
@@ -217,21 +362,35 @@ function App() {
         }
 
         if (activePage === 'profile') {
+            fetchEventsByStatus('stage3');
+            fetchEventsByStatus('stage2');
+            fetchEventsByStatus('stage1');
+            fetchEventsByStatus('published');
             fetchEventsByStatus('archived');
         }
+
     }, [activePage, currentUser]);
 
-    const normalizedSearch = searchTerm.trim().toLowerCase();
+    const normalizedSearch = searchedUniqueId.trim().toLowerCase();
     const filteredUsers = useMemo(
         () =>
             users.filter((user) => {
                 if (!normalizedSearch) {
                     return false;
                 }
+
+                if (user.isBlockedByViewer || user.isBlockedByUser) {
+                    return false;
+                }
+
                 return getUserUniqueId(user).toLowerCase().includes(normalizedSearch);
             }),
         [normalizedSearch, users]
     );
+
+    const handleSearchUsers = () => {
+        setSearchedUniqueId(searchInput.trim());
+    };
 
     const handleRegister = async (e) => {
         e.preventDefault();
@@ -284,11 +443,12 @@ function App() {
         try {
             setIsSubmitting(true);
             const data = await authAPI.login(loginEmail, loginPassword);
+            setAccessToken(data.token);
             setCurrentUser(data.user);
             setLoginPassword('');
             clearPasswordResetState();
             setAuthSuccess(data.message || 'Login successful');
-            navigate('/users');
+            navigate(canManageUsers(data.user) ? '/users' : '/home');
         } catch (err) {
             setAuthError(err.message || 'Network error: please try again.');
         } finally {
@@ -364,6 +524,7 @@ function App() {
             setLoginPassword('');
             setAuthView('login');
             setCurrentUser(null);
+            clearAccessToken();
             localStorage.removeItem('wittingUser');
             clearPasswordResetState();
             setAuthSuccess(data.message || 'Password reset successful.');
@@ -379,6 +540,7 @@ function App() {
         setEventUser(null);
         setEditingEvent(null);
         setEventDescription('');
+        setEventMessage('');
         setEventDate('');
         setEventDuration('');
         setEventError('');
@@ -388,9 +550,9 @@ function App() {
 
     const handleLogout = () => {
         setCurrentUser(null);
-        setLoginPassword('');
-        clearPasswordResetState();
-        setAuthSuccess('');
+        clearAccessToken();
+        setAuthView('login');
+        clearAuthFormState();
         setEventActionError('');
         setEventActionSuccess('');
         setActiveEventActionId('');
@@ -408,6 +570,7 @@ function App() {
         setEditingEvent(null);
         setEventUser(user);
         setEventDescription('');
+        setEventMessage('');
         setEventDate('');
         setEventDuration('');
         setEventError('');
@@ -418,6 +581,7 @@ function App() {
         setEditingEvent(event);
         setEventUser(event.target);
         setEventDescription(event.description || '');
+        setEventMessage('');
         setEventDate(event.date ? new Date(event.date).toISOString().split('T')[0] : '');
         setEventDuration(event.timeDuration ? String(event.timeDuration) : '');
         setEventError('');
@@ -467,6 +631,7 @@ function App() {
                 currentUser._id,
                 eventUser._id,
                 eventDescription.trim(),
+                eventMessage.trim(),
                 eventDate,
                 Number(eventDuration)
             );
@@ -503,14 +668,33 @@ function App() {
 
         try {
             setIsEventSubmitting(true);
+            const nextDescription = canEditEventDetails
+                ? eventDescription.trim()
+                : (editingEvent.description || '').trim();
+            const nextDate = canEditEventDetails
+                ? eventDate
+                : (editingEvent.date ? new Date(editingEvent.date).toISOString().split('T')[0] : '');
+            const nextDuration = canEditEventDetails
+                ? Number(eventDuration)
+                : Number(editingEvent.timeDuration);
+            const nextMessage = eventMessage.trim();
+
             const updateResult = await eventAPI.update(
                 editingEvent._id,
-                eventDescription.trim(),
-                eventDate,
-                Number(eventDuration)
+                nextDescription,
+                nextMessage,
+                currentUser?._id,
+                nextDate,
+                nextDuration
             );
-            const advanceResult = await eventAPI.advance(editingEvent._id);
-            setEventActionSuccess(advanceResult.message || updateResult.message || 'Event updated successfully.');
+            if (canEditEventDetails) {
+                const advanceResult = await eventAPI.advance(editingEvent._id);
+                setEventActionSuccess(advanceResult.message || updateResult.message || 'Event updated successfully.');
+            } else if (nextMessage) {
+                setEventActionSuccess(updateResult.message || 'Message updated successfully.');
+            } else {
+                setEventActionSuccess(updateResult.message || 'Event updated successfully.');
+            }
             closeEventModal();
             await Promise.all(['stage3', 'stage2', 'stage1'].map((status) => fetchEventsByStatus(status)));
         } catch (err) {
@@ -636,13 +820,58 @@ function App() {
         [eventsByStatus.published, now]
     );
 
+    const presentEventCounts = useMemo(() => {
+        const countTodayOrFuture = (events) =>
+            (events || []).filter((event) => isTodayOrFutureDate(event.date, now)).length;
+
+        return {
+            published: countTodayOrFuture(eventsByStatus.published),
+            stage1: countTodayOrFuture(eventsByStatus.stage1),
+            stage2: countTodayOrFuture(eventsByStatus.stage2),
+            stage3: countTodayOrFuture(eventsByStatus.stage3),
+        };
+    }, [eventsByStatus.published, eventsByStatus.stage1, eventsByStatus.stage2, eventsByStatus.stage3, now]);
+
+    const expiredEvents = useMemo(() => {
+        const currentUserId = currentUser?._id;
+        if (!currentUserId) {
+            return [];
+        }
+
+        const statusGroups = [
+            eventsByStatus.stage3 || [],
+            eventsByStatus.stage2 || [],
+            eventsByStatus.stage1 || [],
+            eventsByStatus.published || [],
+        ];
+
+        return statusGroups
+            .flat()
+            .filter((event) => {
+                const creatorId = event.creator?._id || event.creatorId;
+                const targetId = event.target?._id || event.targetId;
+                const isParticipant = creatorId === currentUserId || targetId === currentUserId;
+                return isParticipant && isExpiredByDate(event.date, now);
+            });
+    }, [currentUser?._id, eventsByStatus.published, eventsByStatus.stage1, eventsByStatus.stage2, eventsByStatus.stage3, now]);
+
     const eventCounts = {
         home: todaysPublishedCount,
-        'total-events': eventsByStatus.published?.length || 0,
-        stage1: eventsByStatus.stage1?.length || 0,
-        stage2: eventsByStatus.stage2?.length || 0,
-        stage3: eventsByStatus.stage3?.length || 0,
+        'total-events': presentEventCounts.published,
+        stage1: presentEventCounts.stage1,
+        stage2: presentEventCounts.stage2,
+        stage3: presentEventCounts.stage3,
     };
+    const editingCreatorId = editingEvent?.creator?._id || editingEvent?.creatorId || '';
+    const editingTargetId = editingEvent?.target?._id || editingEvent?.targetId || '';
+    const canManageEditingEvent = Boolean(editingEvent && (
+        (editingEvent.status === 'stage3' && editingTargetId === currentUser?._id)
+        || (editingEvent.status === 'stage2' && editingCreatorId === currentUser?._id)
+    ));
+    const canEditEventDetails = !editingEvent || canManageEditingEvent;
+    const canAddEventMessage = !editingEvent
+        || editingCreatorId === currentUser?._id
+        || editingTargetId === currentUser?._id;
 
     if (!currentUser) {
         return (
@@ -695,6 +924,10 @@ function App() {
                     formattedTime={formattedTime}
                     onClearMessages={clearMessages}
                     eventCounts={eventCounts}
+                    currentUser={currentUser}
+                    notifications={notifications}
+                    onMarkNotificationRead={handleMarkNotificationRead}
+                    onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
                 />
 
                 <Routes>
@@ -742,7 +975,6 @@ function App() {
                         }
                     />
                     <Route path="/public" element={<PublicPage currentUser={currentUser} />} />
-                    <Route path="/family" element={<FamilyPage />} />
                     <Route
                         path="/users/:userId"
                         element={
@@ -752,7 +984,19 @@ function App() {
                             />
                         }
                     />
-                    <Route path="/users" element={<UsersPage users={users} isLoading={isLoadingUsers} error={usersError} onRefresh={fetchUsers} />} />
+                    <Route
+                        path="/users"
+                        element={canViewAllUsers
+                            ? <UsersPage
+                                users={users}
+                                isLoading={isLoadingUsers}
+                                error={usersError}
+                                onRefresh={fetchUsers}
+                                currentUser={currentUser}
+                                onTogglePause={handleToggleUserPause}
+                            />
+                            : <Navigate replace to="/home" />}
+                    />
                     <Route
                         path="/stage3"
                         element={
@@ -830,8 +1074,10 @@ function App() {
                         element={
                             <SearchPage
                                 currentUserId={currentUser._id}
-                                searchTerm={searchTerm}
-                                setSearchTerm={setSearchTerm}
+                                searchInput={searchInput}
+                                setSearchInput={setSearchInput}
+                                searchedUniqueId={searchedUniqueId}
+                                onSearch={handleSearchUsers}
                                 filteredUsers={filteredUsers}
                                 isLoading={isLoadingUsers}
                                 error={usersError}
@@ -851,6 +1097,24 @@ function App() {
                                 archivedEvents={eventsByStatus.archived}
                                 archiveLoading={eventsLoading.archived}
                                 archiveError={eventsError.archived}
+                                expiredEvents={expiredEvents}
+                                expiredLoading={eventsLoading.stage3 || eventsLoading.stage2 || eventsLoading.stage1 || eventsLoading.published}
+                                expiredError={eventsError.stage3 || eventsError.stage2 || eventsError.stage1 || eventsError.published}
+                            />
+                        }
+                    />
+                    <Route
+                        path="/setting"
+                        element={
+                            <SettingPage
+                                currentUser={currentUser}
+                                onUserUpdate={handleUserUpdate}
+                                archivedEvents={eventsByStatus.archived}
+                                archiveLoading={eventsLoading.archived}
+                                archiveError={eventsError.archived}
+                                expiredEvents={expiredEvents}
+                                expiredLoading={eventsLoading.stage3 || eventsLoading.stage2 || eventsLoading.stage1 || eventsLoading.published}
+                                expiredError={eventsError.stage3 || eventsError.stage2 || eventsError.stage1 || eventsError.published}
                             />
                         }
                     />
@@ -865,8 +1129,13 @@ function App() {
                     creatorUser={editingEvent?.creator || editingEvent?.creatorId || null}
                     eventUser={eventUser}
                     mode={editingEvent ? 'edit' : 'create'}
+                    canEditDetails={canEditEventDetails}
                     eventDescription={eventDescription}
                     setEventDescription={setEventDescription}
+                    eventMessage={eventMessage}
+                    setEventMessage={setEventMessage}
+                    existingMessage={editingEvent?.message || ''}
+                    canAddMessage={canAddEventMessage}
                     eventDate={eventDate}
                     setEventDate={setEventDate}
                     eventDuration={eventDuration}

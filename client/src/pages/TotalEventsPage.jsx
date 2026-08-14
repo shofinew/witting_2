@@ -1,6 +1,18 @@
 import React, { useMemo, useState } from 'react';
 import { EventSection } from '../components/EventSection';
 
+const isTodayOrFutureDate = (value, today) => {
+    if (!value) {
+        return false;
+    }
+
+    const eventDate = new Date(value);
+    const normalizedEventDate = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+    const normalizedToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    return normalizedEventDate >= normalizedToday;
+};
+
 export function TotalEventsPage({
     events,
     now,
@@ -21,20 +33,21 @@ export function TotalEventsPage({
 
     const { comingEvents, goingEvents } = useMemo(() => {
         const publishedEvents = Array.isArray(events) ? events : [];
+        const visibleEvents = publishedEvents.filter((event) => isTodayOrFutureDate(event.date, now));
 
         return {
-            comingEvents: publishedEvents.filter((event) => {
+            comingEvents: visibleEvents.filter((event) => {
                 const creatorId = event.creator?._id || event.creatorId;
                 return creatorId !== currentUserId;
             }),
-            goingEvents: publishedEvents.filter((event) => {
+            goingEvents: visibleEvents.filter((event) => {
                 const creatorId = event.creator?._id || event.creatorId;
                 return creatorId === currentUserId;
             }),
         };
-    }, [events, currentUserId]);
+    }, [events, currentUserId, now]);
 
-    const visibleEvents = activeTab === 'going' ? goingEvents : activeTab === 'total' ? totalEvents : comingEvents;
+    const visibleEvents = activeTab === 'going' ? goingEvents : comingEvents;
 
     return (
         <EventSection

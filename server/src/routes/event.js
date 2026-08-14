@@ -1,14 +1,18 @@
 const express = require('express');
 const eventController = require('../controllers/eventController');
 const { validateObjectIdParam } = require('../middleware/validation');
+const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
+router.use(requireAuth);
 
 // Event Routes
 router.post('/event/add', eventController.createEvent);
 router.get('/events', eventController.getEventsByStatus);
 router.post('/public-events', eventController.createPublicEvent);
 router.get('/public-events', eventController.getPublicEvents);
+router.patch('/public-events/:eventId/like', validateObjectIdParam('eventId'), eventController.likePublicEvent);
+router.delete('/public-events/:eventId', validateObjectIdParam('eventId'), eventController.deletePublicEvent);
 router.patch('/event/:eventId', validateObjectIdParam('eventId'), eventController.updateEvent);
 router.patch('/event/:eventId/advance', validateObjectIdParam('eventId'), eventController.advanceEvent);
 router.patch('/event/:eventId/publish', validateObjectIdParam('eventId'), eventController.publishEvent);

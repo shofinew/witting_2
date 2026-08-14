@@ -1,6 +1,18 @@
 import React, { useMemo, useState } from 'react';
 import { EventSection } from '../components/EventSection';
 
+const isTodayOrFutureDate = (value, today) => {
+    if (!value) {
+        return false;
+    }
+
+    const eventDate = new Date(value);
+    const normalizedEventDate = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+    const normalizedToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    return normalizedEventDate >= normalizedToday;
+};
+
 export function StagePage({
     stage,
     events,
@@ -24,18 +36,19 @@ export function StagePage({
 
     const { comingEvents, goingEvents } = useMemo(() => {
         const stageEvents = Array.isArray(events) ? events : [];
+        const visibleEvents = stageEvents.filter((event) => isTodayOrFutureDate(event.date, now));
 
         return {
-            comingEvents: stageEvents.filter((event) => {
+            comingEvents: visibleEvents.filter((event) => {
                 const creatorId = event.creator?._id || event.creatorId;
                 return creatorId !== currentUserId;
             }),
-            goingEvents: stageEvents.filter((event) => {
+            goingEvents: visibleEvents.filter((event) => {
                 const creatorId = event.creator?._id || event.creatorId;
                 return creatorId === currentUserId;
             }),
         };
-    }, [events, currentUserId]);
+    }, [events, currentUserId, now]);
 
     const visibleEvents = activeTab === 'going' ? goingEvents : comingEvents;
 
@@ -58,6 +71,11 @@ export function StagePage({
             onDelete={onDelete}
             onArchive={onArchive}
             onStart={onStart}
+            hideEditButton={
+                (stage === 'stage1' && activeTab === 'going')
+                || (stage === 'stage2' && activeTab === 'coming')
+                || (stage === 'stage3' && activeTab === 'going')
+            }
             headerContent={
                 <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
                     <button

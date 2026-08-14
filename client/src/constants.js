@@ -17,15 +17,14 @@ const normalizeApiUrl = (rawApiUrl) => {
 export const API_URL = normalizeApiUrl(import.meta.env.VITE_API_URL);
 
 export const NAV_ITEMS = [
-    { id: 'users', label: 'All Users' },
     { id: 'public', label: 'Public' },
-    { id: 'family', label: 'Family' },
     { id: 'home', label: 'Home' },
     { id: 'total-events', label: 'Total Events' },
     { id: 'stage1', label: 'Stage1' },
     { id: 'stage2', label: 'Stage2' },
     { id: 'stage3', label: 'Stage3' },
     { id: 'search', label: 'Search User' },
+    { id: 'users', label: 'All Users' },
     { id: 'profile', label: 'Profile' },
 ];
 

@@ -21,9 +21,22 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    role: {
+        type: String,
+        enum: ['superAdmin', 'admin', 'user'],
+        default: 'user',
+        required: true,
+    },
     sessionVersion: {
         type: Number,
         default: 0,
+    },
+    isPaused: {
+        type: Boolean,
+        default: false,
+    },
+    pausedAt: {
+        type: Date,
     },
     passwordChangedAt: {
         type: Date,

@@ -1,3 +1,5 @@
+const { verifyAccessToken } = require('../utils/jwt');
+
 const parsePositiveInteger = (value, fallback) => {
     const parsed = Number.parseInt(value, 10);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
@@ -7,12 +9,13 @@ const createRateLimiter = ({
     windowMs = 15 * 60 * 1000,
     maxRequests = 100,
     message = 'Too many requests. Please try again later.',
+    keyGenerator = (req) => req.ip || req.socket?.remoteAddress || 'unknown',
 } = {}) => {
     const requests = new Map();
 
     return (req, res, next) => {
         const now = Date.now();
-        const key = req.ip || req.socket?.remoteAddress || 'unknown';
+        const key = keyGenerator(req);
         const current = requests.get(key);
 
         if (!current || current.expiresAt <= now) {
@@ -39,11 +42,28 @@ const apiRateLimiter = createRateLimiter({
     windowMs: parsePositiveInteger(process.env.API_RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
     maxRequests: parsePositiveInteger(process.env.API_RATE_LIMIT_MAX_REQUESTS, 300),
     message: process.env.API_RATE_LIMIT_MESSAGE || 'Too many API requests. Please try again later.',
+    // Authenticated users should not share a bucket when the server is behind
+    // a reverse proxy/NAT. Invalid bearer tokens still use the IP bucket.
+    keyGenerator: (req) => {
+        const authorization = req.get('authorization') || '';
+        if (authorization.startsWith('Bearer ')) {
+            try {
+                const payload = verifyAccessToken(authorization.slice(7));
+                if (payload.sub) {
+                    return `user:${payload.sub}`;
+                }
+            } catch {
+                // Fall through to the client IP for invalid/expired tokens.
+            }
+        }
+
+        return `ip:${req.ip || req.socket?.remoteAddress || 'unknown'}`;
+    },
 });
 
 const authRateLimiter = createRateLimiter({
     windowMs: parsePositiveInteger(process.env.AUTH_RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
-    maxRequests: parsePositiveInteger(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS, 20),
+    maxRequests: parsePositiveInteger(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS, 100),
     message: process.env.AUTH_RATE_LIMIT_MESSAGE || 'Too many authentication attempts. Please try again later.',
 });
 

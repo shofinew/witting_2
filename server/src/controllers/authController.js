@@ -11,10 +11,10 @@ const register = asyncHandler(async (req, res) => {
     const { name, email, password } = req.body;
 
     try {
-        const user = await authService.register(name, email, password, getRequestContext(req));
+        const result = await authService.register(name, email, password, getRequestContext(req));
         return res.status(201).json({
             message: 'User registered successfully.',
-            user,
+            ...result,
         });
     } catch (error) {
         const statusCode = error.statusCode || 500;
@@ -28,10 +28,10 @@ const login = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
 
     try {
-        const user = await authService.login(email, password, getRequestContext(req));
+        const result = await authService.login(email, password, getRequestContext(req));
         return res.status(200).json({
             message: 'Login successful.',
-            user,
+            ...result,
         });
     } catch (error) {
         const statusCode = error.statusCode || 500;
@@ -42,7 +42,7 @@ const login = asyncHandler(async (req, res) => {
 
 // Get All Users Controller
 const getAllUsers = asyncHandler(async (req, res) => {
-    const { viewerUserId } = req.query;
+    const viewerUserId = req.auth.userId;
 
     try {
         const users = await authService.getAllUsers(viewerUserId);
@@ -80,10 +80,10 @@ const resetPassword = asyncHandler(async (req, res) => {
 });
 
 const validateSession = asyncHandler(async (req, res) => {
-    const { userId, sessionVersion } = req.body;
+    const { sessionVersion } = req.body;
 
     try {
-        const result = await authService.validateSession(userId, sessionVersion);
+        const result = await authService.validateSession(req.auth.userId, sessionVersion);
         return res.status(200).json(result);
     } catch (error) {
         const statusCode = error.statusCode || 500;
@@ -95,7 +95,7 @@ const validateSession = asyncHandler(async (req, res) => {
 // Get Single User Controller
 const getUserById = asyncHandler(async (req, res) => {
     const { userId } = req.params;
-    const { viewerUserId } = req.query;
+    const viewerUserId = req.auth.userId;
 
     try {
         const user = await authService.getUserById(userId, viewerUserId);
@@ -113,7 +113,8 @@ const updateProfile = asyncHandler(async (req, res) => {
     const updates = req.body;
 
     try {
-        const updatedUser = await authService.updateProfile(userId, updates);
+        if (String(userId) !== req.auth.userId) return res.status(403).json({ message: 'You can only update your own profile.' });
+        const updatedUser = await authService.updateProfile(req.auth.userId, updates);
         return res.status(200).json({
             message: 'Profile updated successfully.',
             user: updatedUser,
@@ -125,10 +126,31 @@ const updateProfile = asyncHandler(async (req, res) => {
     }
 });
 
+const setUserPaused = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+    const { paused } = req.body;
+
+    try {
+        const user = await authService.setUserPaused(req.auth.userId, userId, paused);
+        return res.status(200).json({
+            message: user.isPaused ? 'Account paused successfully.' : 'Account resumed successfully.',
+            user,
+        });
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        const message = error.message || 'Server error while updating account status.';
+        return res.status(statusCode).json({ message });
+    }
+});
+
 const getAuditLogs = asyncHandler(async (req, res) => {
     const { userId } = req.params;
 
     try {
+        const canViewAnotherUser = ['admin', 'superAdmin'].includes(req.auth.role);
+        if (String(userId) !== req.auth.userId && !canViewAnotherUser) {
+            return res.status(403).json({ message: 'You can only view your own audit logs.' });
+        }
         const logs = await authService.getAuditLogs(userId);
         return res.status(200).json({ logs });
     } catch (error) {
@@ -138,11 +160,28 @@ const getAuditLogs = asyncHandler(async (req, res) => {
     }
 });
 
-const toggleFollow = asyncHandler(async (req, res) => {
-    const { followerUserId, followeeUserId } = req.body;
+const getBlockedUsers = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
 
     try {
-        const result = await authService.toggleFollow(followerUserId, followeeUserId);
+        const canViewAnotherUser = ['admin', 'superAdmin'].includes(req.auth.role);
+        if (String(userId) !== req.auth.userId && !canViewAnotherUser) {
+            return res.status(403).json({ message: 'You can only view your own blocked users.' });
+        }
+        const blockedUsers = await authService.getBlockedUsers(userId);
+        return res.status(200).json({ blockedUsers });
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        const message = error.message || 'Server error while fetching blocked users.';
+        return res.status(statusCode).json({ message });
+    }
+});
+
+const toggleFollow = asyncHandler(async (req, res) => {
+    const { followeeUserId } = req.body;
+
+    try {
+        const result = await authService.toggleFollow(req.auth.userId, followeeUserId);
         return res.status(200).json({
             message: result.isFollowing ? 'User followed successfully.' : 'User unfollowed successfully.',
             ...result,
@@ -150,6 +189,22 @@ const toggleFollow = asyncHandler(async (req, res) => {
     } catch (error) {
         const statusCode = error.statusCode || 500;
         const message = error.message || 'Server error while updating follow status.';
+        return res.status(statusCode).json({ message });
+    }
+});
+
+const toggleBlock = asyncHandler(async (req, res) => {
+    const { blockedUserId } = req.body;
+
+    try {
+        const result = await authService.toggleBlock(req.auth.userId, blockedUserId);
+        return res.status(200).json({
+            message: result.isBlocked ? 'User blocked successfully.' : 'User unblocked successfully.',
+            ...result,
+        });
+    } catch (error) {
+        const statusCode = error.statusCode || 500;
+        const message = error.message || 'Server error while updating block status.';
         return res.status(statusCode).json({ message });
     }
 });
@@ -163,6 +218,9 @@ module.exports = {
     getAllUsers,
     getUserById,
     updateProfile,
+    setUserPaused,
     getAuditLogs,
+    getBlockedUsers,
     toggleFollow,
+    toggleBlock,
 };

@@ -87,25 +87,50 @@ const validateUpdateEventInput = (description, date, timeDuration, constraints) 
     return { valid: true, durationNumber };
 };
 
-const validateCreatePublicEventInput = (creatorId, title, description, date, time) => {
-    if (!creatorId || !title || !description || !date || !time) {
-        return { valid: false, message: 'creatorId, title, description, date, and time are required.' };
+const validateCreatePublicEventInput = (creatorId, title, description, location, startDate, startTime, endDate, endTime) => {
+    if (!creatorId || !title || !description || !location || !startDate || !startTime || !endDate || !endTime) {
+        return { valid: false, message: 'creatorId, title, description, location, startDate, startTime, endDate, and endTime are required.' };
     }
 
     if (!isValidObjectId(creatorId)) {
         return { valid: false, message: 'Invalid creator ID.' };
     }
 
-    if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(String(time).trim())) {
-        return { valid: false, message: 'Time must be in HH:MM format.' };
+    if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(String(startTime).trim())) {
+        return { valid: false, message: 'Start time must be in HH:MM format.' };
     }
 
-    const eventDateValidation = validateEventDate(date);
-    if (!eventDateValidation.valid) {
-        return eventDateValidation;
+    if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(String(endTime).trim())) {
+        return { valid: false, message: 'End time must be in HH:MM format.' };
     }
 
-    return { valid: true };
+    const startValidation = validateEventDate(startDate);
+    if (!startValidation.valid) {
+        return startValidation;
+    }
+
+    const endValidation = validateEventDate(endDate);
+    if (!endValidation.valid) {
+        return endValidation;
+    }
+
+    const startDateTime = new Date(`${startDate}T${startTime}`);
+    const endDateTime = new Date(`${endDate}T${endTime}`);
+
+    if (Number.isNaN(startDateTime.getTime()) || Number.isNaN(endDateTime.getTime())) {
+        return { valid: false, message: 'Invalid start or end date/time.' };
+    }
+
+    if (endDateTime <= startDateTime) {
+        return { valid: false, message: 'End date/time must be after start date/time.' };
+    }
+
+    const durationMinutes = Math.round((endDateTime - startDateTime) / 60000);
+    if (durationMinutes <= 0) {
+        return { valid: false, message: 'Duration must be positive.' };
+    }
+
+    return { valid: true, durationMinutes };
 };
 
 const validateEventDate = (date) => {
@@ -113,8 +138,8 @@ const validateEventDate = (date) => {
         return { valid: false, message: 'Event date is required.' };
     }
 
-    const eventDate = new Date(date);
-    if (Number.isNaN(eventDate.getTime())) {
+    const eventDate = parseDateOnly(date);
+    if (!eventDate) {
         return { valid: false, message: 'Invalid event date.' };
     }
 
@@ -197,12 +222,32 @@ const validateFollowInput = (followerUserId, followeeUserId) => {
     return { valid: true };
 };
 
+const validateBlockInput = (blockerUserId, blockedUserId) => {
+    if (!blockerUserId || !blockedUserId) {
+        return { valid: false, message: 'Blocker user ID and blocked user ID are required.' };
+    }
+
+    if (!isValidObjectId(blockerUserId) || !isValidObjectId(blockedUserId)) {
+        return { valid: false, message: 'Invalid blocker user ID or blocked user ID.' };
+    }
+
+    if (String(blockerUserId) === String(blockedUserId)) {
+        return { valid: false, message: 'You cannot block yourself.' };
+    }
+
+    return { valid: true };
+};
+
 const validateDateOfBirth = (dateOfBirth) => {
     if (!dateOfBirth) {
         return { valid: true };
     }
 
-    const birthDate = new Date(dateOfBirth);
+    const birthDate = parseDateOnly(dateOfBirth);
+    if (!birthDate) {
+        return { valid: false, message: 'Invalid date of birth.' };
+    }
+
     const today = new Date();
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
@@ -218,6 +263,30 @@ const validateDateOfBirth = (dateOfBirth) => {
     return { valid: true };
 };
 
+const parseDateOnly = (value) => {
+    const normalizedValue = String(value).trim();
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(normalizedValue);
+
+    if (!match) {
+        return null;
+    }
+
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const parsedDate = new Date(year, month - 1, day);
+
+    if (
+        parsedDate.getFullYear() !== year
+        || parsedDate.getMonth() !== month - 1
+        || parsedDate.getDate() !== day
+    ) {
+        return null;
+    }
+
+    return parsedDate;
+};
+
 module.exports = {
     isValidObjectId,
     isValidEmail,
@@ -227,6 +296,7 @@ module.exports = {
     validateResetPasswordInput,
     validateSessionInput,
     validateFollowInput,
+    validateBlockInput,
     validateCreateEventInput,
     validateCreatePublicEventInput,
     validateUpdateEventInput,

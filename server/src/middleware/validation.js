@@ -5,6 +5,7 @@ const {
     validateResetPasswordInput,
     validateSessionInput,
     validateFollowInput,
+    validateBlockInput,
     isValidObjectId,
 } = require('../utils/validators');
 
@@ -76,6 +77,17 @@ const validateFollowRequest = (req, res, next) => {
     next();
 };
 
+const validateBlockRequest = (req, res, next) => {
+    const { blockerUserId, blockedUserId } = req.body;
+    const validation = validateBlockInput(blockerUserId, blockedUserId);
+
+    if (!validation.valid) {
+        return res.status(400).json({ message: validation.message });
+    }
+
+    next();
+};
+
 // Validate ObjectId Parameter
 const validateObjectIdParam = (paramName) => {
     return (req, res, next) => {
@@ -96,5 +108,6 @@ module.exports = {
     validateResetPasswordRequest,
     validateSessionRequest,
     validateFollowRequest,
+    validateBlockRequest,
     validateObjectIdParam,
 };

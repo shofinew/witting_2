@@ -22,6 +22,7 @@ export function EventSection({
     onStart,
     headerContent = null,
     hideStartAndArchive = false,
+    hideEditButton = false,
     description = null,
     hideSerial = false,
 }) {
@@ -29,25 +30,25 @@ export function EventSection({
     const isPublished = status === 'published';
 
     return (
-        <div className="w-full rounded-3xl border border-indigo-100 bg-white/95 p-8 shadow-2xl backdrop-blur-sm">
-            <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="w-full rounded-3xl border border-indigo-100 bg-white/95 p-4 shadow-2xl backdrop-blur-sm sm:p-5">
+            <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                    <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-fuchsia-600">{title}</h2>
-                    <p className="mt-1 text-gray-600">
+                    <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-fuchsia-600">{title}</h2>
+                    <p className="mt-0.5 text-sm text-gray-600">
                         {description || (isPublished ? "Today's events live here." : `Events currently waiting in ${title}.`)}
                     </p>
                 </div>
                 <button
                     type="button"
                     onClick={() => onRefresh(status)}
-                    className="rounded-xl bg-indigo-600 px-4 py-2 font-semibold text-white transition hover:bg-indigo-700"
+                    className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
                 >
                     Refresh
                 </button>
             </div>
 
             {headerContent && (
-                <div className="mb-6">
+                <div className="mb-4">
                     {headerContent}
                 </div>
             )}
@@ -61,7 +62,7 @@ export function EventSection({
             ) : events.length === 0 ? (
                 <p className="text-gray-600">No events found in this stage.</p>
             ) : (
-                <div className="grid gap-4">
+                <div className="grid gap-3">
                     {events.map((event) => (
                         <EventCard
                             key={event._id}
@@ -78,6 +79,7 @@ export function EventSection({
                             onArchive={onArchive}
                             onStart={onStart}
                             hideStartAndArchive={hideStartAndArchive}
+                            hideEditButton={hideEditButton}
                             hideSerial={hideSerial}
                         />
                     ))}

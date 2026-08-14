@@ -41,22 +41,22 @@ export function AuthPage({
     setAuthSuccess,
 }) {
     return (
-        <div className="min-h-screen bg-gradient-to-br from-fuchsia-200 via-sky-100 to-cyan-100 p-4 sm:p-5">
-            <div className="w-full max-w-md mx-auto bg-white/95 p-5 sm:p-6 rounded-3xl shadow-2xl border border-indigo-100 backdrop-blur-sm">
-                <div className="mb-4 text-center">
-                    <h1 className="text-3xl sm:text-4xl font-black text-primary">
+        <div className="min-h-screen bg-gradient-to-br from-fuchsia-200 via-sky-100 to-cyan-100 p-3 sm:p-4">
+            <div className="w-full max-w-sm mx-auto bg-white/95 p-4 sm:p-5 rounded-2xl shadow-xl border border-indigo-100 backdrop-blur-sm">
+                <div className="mb-3 text-center">
+                    <h1 className="text-2xl sm:text-3xl font-black text-primary">
                         Welcome to Witting
                     </h1>
-                    <p className="text-gray-600 mt-1.5 text-sm sm:text-base">
+                    <p className="text-gray-600 mt-1 text-xs sm:text-sm">
                         {authView === 'login'
-                            ? 'Login with your email and password'
+                            ? 'Save your valuable time'
                             : authView === 'forgotPassword'
                                 ? 'Reset your password with a 20-minute OTP'
                                 : 'Create a new account'}
                     </p>
                 </div>
 
-                <div className="flex items-center justify-center gap-2 mb-4">
+                <div className="flex items-center justify-center gap-1.5 mb-3">
                     <button
                         type="button"
                         onClick={() => {
@@ -65,8 +65,8 @@ export function AuthPage({
                             setAuthError('');
                             setAuthSuccess('');
                         }}
-                        className={`px-3.5 py-1.5 rounded-xl font-semibold transition ${authView === 'login'
-                            ? 'bg-white text-primary shadow-lg'
+                        className={`px-3 py-1 rounded-lg text-sm font-semibold transition ${authView === 'login'
+                            ? 'bg-white text-primary shadow-lg shadow-emerald-200/80'
                             : 'bg-primary/10 text-primary hover:bg-primary/20'
                             }`}
                     >
@@ -80,7 +80,7 @@ export function AuthPage({
                             setAuthError('');
                             setAuthSuccess('');
                         }}
-                        className={`px-3.5 py-1.5 rounded-xl font-semibold transition ${authView === 'register'
+                        className={`px-3 py-1 rounded-lg text-sm font-semibold transition ${authView === 'register'
                             ? 'bg-white text-primary shadow-lg'
                             : 'bg-primary/10 text-primary hover:bg-primary/20'
                             }`}
@@ -90,12 +90,12 @@ export function AuthPage({
                 </div>
 
                 {authError && (
-                    <div className="mb-3 p-2.5 text-sm text-red-900 bg-red-100/90 rounded-xl border border-red-200 shadow-sm">
+                    <div className="mb-2 p-2 text-xs text-red-900 bg-red-100/90 rounded-lg border border-red-200 shadow-sm">
                         {authError}
                     </div>
                 )}
                 {authSuccess && (
-                    <div className="mb-3 p-2.5 text-sm text-green-900 bg-green-100/90 rounded-xl border border-green-200 shadow-sm">
+                    <div className="mb-2 p-2 text-xs text-green-900 bg-green-100/90 rounded-lg border border-green-200 shadow-sm">
                         {authSuccess}
                     </div>
                 )}
@@ -108,6 +108,12 @@ export function AuthPage({
                         setLoginPassword={setLoginPassword}
                         isSubmitting={isSubmitting}
                         onSubmit={onLogin}
+                        onCreateAccount={() => {
+                            setAuthView('register');
+                            onClearPasswordResetState();
+                            setAuthError('');
+                            setAuthSuccess('');
+                        }}
                         onForgotPassword={() => {
                             onClearPasswordResetState();
                             setForgotEmail(loginEmail);
@@ -150,6 +156,12 @@ export function AuthPage({
                         setRegisterPasswordConfirm={setRegisterPasswordConfirm}
                         isSubmitting={isSubmitting}
                         onSubmit={onRegister}
+                        onBackToLogin={() => {
+                            setAuthView('login');
+                            onClearPasswordResetState();
+                            setAuthError('');
+                            setAuthSuccess('');
+                        }}
                     />
                 )}
             </div>

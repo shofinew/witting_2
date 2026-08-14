@@ -22,6 +22,16 @@ const archivedSchema = new mongoose.Schema(
             trim: true,
             default: '',
         },
+        message: {
+            type: String,
+            trim: true,
+            default: '',
+        },
+        messageAuthorId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            default: null,
+        },
         date: {
             type: Date,
             required: true,

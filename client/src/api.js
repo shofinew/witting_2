@@ -1,22 +1,58 @@
 import { API_URL } from './constants';
 
+const ACCESS_TOKEN_KEY = 'wittingAccessToken';
+
+export const getAccessToken = () => localStorage.getItem(ACCESS_TOKEN_KEY);
+export const setAccessToken = (token) => {
+    if (token) localStorage.setItem(ACCESS_TOKEN_KEY, token);
+};
+export const clearAccessToken = () => localStorage.removeItem(ACCESS_TOKEN_KEY);
+
+// Keep authentication centralized so every API request carries the current token.
+const fetch = (input, init = {}) => {
+    const headers = new Headers(init.headers || {});
+    const token = getAccessToken();
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    return window.fetch(input, { ...init, headers });
+};
+
 // Safe JSON parser with proper error handling
 const safeJsonParse = async (response, fallbackMessage) => {
+    if (response.status === 401) {
+        clearAccessToken();
+        window.dispatchEvent(new CustomEvent('witting:auth-expired'));
+    }
+
     const contentType = response.headers.get('content-type');
-    
+
     if (!contentType || !contentType.includes('application/json')) {
         const text = await response.text();
-        throw new Error(
-            `Expected JSON but received ${contentType || 'unknown'}: ${text.substring(0, 100)}... API URL: ${API_URL}`
-        );
+
+        if (response.status === 429) {
+            return { message: 'Too many requests. Please try again later.' };
+        }
+
+        if (text) {
+            return { message: text || fallbackMessage };
+        }
+
+        return { message: fallbackMessage };
     }
 
     try {
-        return await response.json();
+        const data = await response.json();
+        if (response.status === 403 && String(data.message || '').toLowerCase().includes('paused')) {
+            window.dispatchEvent(new CustomEvent('witting:account-paused', {
+                detail: data.message,
+            }));
+        }
+        return data;
     } catch (err) {
-        throw new Error(
-            `Failed to parse JSON response: ${err.message}. This usually means the server returned HTML instead of JSON. Check if the API is running at ${API_URL}`
-        );
+        if (response.status === 429) {
+            return { message: 'Too many requests. Please try again later.' };
+        }
+
+        return { message: fallbackMessage };
     }
 };
 
@@ -36,7 +72,11 @@ export const authAPI = {
         const data = await safeJsonParse(response, 'Registration failed');
 
         if (!response.ok) {
-            const error = new Error(data.message || 'Registration failed');
+            const error = new Error(
+                response.status === 429
+                    ? 'Too many authentication attempts. Please try again later.'
+                    : data.message || 'Registration failed'
+            );
             error.statusCode = response.status;
             throw error;
         }
@@ -53,7 +93,11 @@ export const authAPI = {
         const data = await safeJsonParse(response, 'Login failed');
 
         if (!response.ok) {
-            const error = new Error(data.message || 'Login failed');
+            const error = new Error(
+                response.status === 429
+                    ? 'Too many authentication attempts. Please try again later.'
+                    : data.message || 'Login failed'
+            );
             error.statusCode = response.status;
             throw error;
         }
@@ -70,7 +114,11 @@ export const authAPI = {
         const data = await safeJsonParse(response, 'Password reset request failed');
 
         if (!response.ok) {
-            const error = new Error(data.message || 'Password reset request failed');
+            const error = new Error(
+                response.status === 429
+                    ? 'Too many authentication attempts. Please try again later.'
+                    : data.message || 'Password reset request failed'
+            );
             error.statusCode = response.status;
             throw error;
         }
@@ -87,7 +135,11 @@ export const authAPI = {
         const data = await safeJsonParse(response, 'Password reset failed');
 
         if (!response.ok) {
-            const error = new Error(data.message || 'Password reset failed');
+            const error = new Error(
+                response.status === 429
+                    ? 'Too many authentication attempts. Please try again later.'
+                    : data.message || 'Password reset failed'
+            );
             error.statusCode = response.status;
             throw error;
         }
@@ -104,7 +156,11 @@ export const authAPI = {
         const data = await safeJsonParse(response, 'Session validation failed');
 
         if (!response.ok) {
-            const error = new Error(data.message || 'Session validation failed');
+            const error = new Error(
+                response.status === 429
+                    ? 'Too many authentication attempts. Please try again later.'
+                    : data.message || 'Session validation failed'
+            );
             error.statusCode = response.status;
             throw error;
         }
@@ -118,6 +174,19 @@ export const authAPI = {
 
         if (!response.ok) {
             const error = new Error(data.message || 'Failed to load audit logs');
+            error.statusCode = response.status;
+            throw error;
+        }
+
+        return data;
+    },
+
+    getBlockedUsers: async (userId) => {
+        const response = await fetch(`${API_URL}/blocked-users/${userId}`);
+        const data = await safeJsonParse(response, 'Failed to load blocked users');
+
+        if (!response.ok) {
+            const error = new Error(data.message || 'Failed to load blocked users');
             error.statusCode = response.status;
             throw error;
         }
@@ -179,6 +248,26 @@ export const authAPI = {
 
         return data;
     },
+
+    toggleBlock: async (blockerUserId, blockedUserId) => {
+        const response = await fetch(`${API_URL}/block`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                blockerUserId,
+                blockedUserId,
+            }),
+        });
+        const data = await safeJsonParse(response, 'Failed to update block status');
+
+        if (!response.ok) {
+            const error = new Error(data.message || 'Failed to update block status');
+            error.statusCode = response.status;
+            throw error;
+        }
+
+        return data;
+    },
 };
 
 export const userAPI = {
@@ -197,6 +286,23 @@ export const userAPI = {
 
         if (!response.ok) {
             const error = new Error(data.message || 'Failed to load user');
+            error.statusCode = response.status;
+            throw error;
+        }
+
+        return data;
+    },
+
+    setPaused: async (userId, paused) => {
+        const response = await fetch(`${API_URL}/users/${userId}/pause`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paused }),
+        });
+        const data = await safeJsonParse(response, 'Failed to update account status');
+
+        if (!response.ok) {
+            const error = new Error(data.message || 'Failed to update account status');
             error.statusCode = response.status;
             throw error;
         }
@@ -224,7 +330,7 @@ export const eventAPI = {
         return data;
     },
 
-    create: async (creator, target, description, date, timeDuration) => {
+    create: async (creator, target, description, message, date, timeDuration) => {
         const response = await fetch(`${API_URL}/event/add`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -232,6 +338,7 @@ export const eventAPI = {
                 creator,
                 target,
                 description,
+                message,
                 date,
                 timeDuration,
             }),
@@ -247,12 +354,14 @@ export const eventAPI = {
         return data;
     },
 
-    update: async (eventId, description, date, timeDuration) => {
+    update: async (eventId, description, message, actorUserId, date, timeDuration) => {
         const response = await fetch(`${API_URL}/event/${eventId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 description,
+                message,
+                actorUserId,
                 date,
                 timeDuration,
             }),
@@ -361,9 +470,58 @@ export const eventAPI = {
     },
 };
 
-export const publicEventAPI = {
+export const notificationAPI = {
     getAll: async () => {
-        const response = await fetch(`${API_URL}/public-events`);
+        const response = await fetch(`${API_URL}/notifications`);
+        const data = await safeJsonParse(response, 'Failed to load notifications');
+
+        if (!response.ok) {
+            const error = new Error(data.message || 'Failed to load notifications');
+            error.statusCode = response.status;
+            throw error;
+        }
+
+        return data;
+    },
+
+    markRead: async (notificationId) => {
+        const response = await fetch(`${API_URL}/notifications/${notificationId}/read`, {
+            method: 'PATCH',
+        });
+        const data = await safeJsonParse(response, 'Failed to update notification');
+
+        if (!response.ok) {
+            const error = new Error(data.message || 'Failed to update notification');
+            error.statusCode = response.status;
+            throw error;
+        }
+
+        return data;
+    },
+
+    markAllRead: async () => {
+        const response = await fetch(`${API_URL}/notifications/read-all`, {
+            method: 'PATCH',
+        });
+        const data = await safeJsonParse(response, 'Failed to update notifications');
+
+        if (!response.ok) {
+            const error = new Error(data.message || 'Failed to update notifications');
+            error.statusCode = response.status;
+            throw error;
+        }
+
+        return data;
+    },
+};
+
+export const publicEventAPI = {
+    getAll: async (creatorId, viewerUserId) => {
+        const params = new URLSearchParams();
+        if (creatorId) params.set('creatorId', creatorId);
+        if (viewerUserId) params.set('viewerUserId', viewerUserId);
+
+        const response = await fetch(`${API_URL}/public-events${params.toString() ? `?${params.toString()}` : ''}`);
         const data = await safeJsonParse(response, 'Failed to load public events');
 
         if (!response.ok) {
@@ -375,7 +533,7 @@ export const publicEventAPI = {
         return data;
     },
 
-    create: async (creatorId, title, description, date, time) => {
+    create: async (creatorId, title, description, location, startDate, startTime, endDate, endTime) => {
         const response = await fetch(`${API_URL}/public-events`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -383,14 +541,55 @@ export const publicEventAPI = {
                 creatorId,
                 title,
                 description,
-                date,
-                time,
+                location,
+                startDate,
+                startTime,
+                endDate,
+                endTime,
             }),
         });
         const data = await safeJsonParse(response, 'Failed to create public event');
 
         if (!response.ok) {
             const error = new Error(data.message || 'Failed to create public event');
+            error.statusCode = response.status;
+            throw error;
+        }
+
+        return data;
+    },
+
+    like: async (eventId, actorUserId) => {
+        const response = await fetch(`${API_URL}/public-events/${eventId}/like`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                actorUserId,
+            }),
+        });
+        const data = await safeJsonParse(response, 'Failed to like public event');
+
+        if (!response.ok) {
+            const error = new Error(data.message || 'Failed to like public event');
+            error.statusCode = response.status;
+            throw error;
+        }
+
+        return data;
+    },
+
+    remove: async (eventId, actorUserId) => {
+        const response = await fetch(`${API_URL}/public-events/${eventId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                actorUserId,
+            }),
+        });
+        const data = await safeJsonParse(response, 'Failed to delete public event');
+
+        if (!response.ok) {
+            const error = new Error(data.message || 'Failed to delete public event');
             error.statusCode = response.status;
             throw error;
         }

@@ -3,8 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api';
 import { COUNTRY_OPTIONS, getCountryLabel } from '../utils/countries';
 import { getUserUniqueId } from '../utils/user';
+import { ProfileTabs } from '../components/ProfileTabs';
+import { ProfileHeader } from '../components/ProfileHeader';
 
-export function ProfilePage({ currentUser, onUserUpdate, onLogout, archivedEvents = [], archiveLoading = false, archiveError = '' }) {
+export function ProfilePage({
+    currentUser,
+    onUserUpdate,
+    onLogout,
+}) {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('profile');
     const [isEditing, setIsEditing] = useState(false);
@@ -22,9 +28,6 @@ export function ProfilePage({ currentUser, onUserUpdate, onLogout, archivedEvent
     const [isUpdating, setIsUpdating] = useState(false);
     const [updateError, setUpdateError] = useState('');
     const [updateSuccess, setUpdateSuccess] = useState('');
-    const [auditLogs, setAuditLogs] = useState([]);
-    const [auditLoading, setAuditLoading] = useState(false);
-    const [auditError, setAuditError] = useState('');
 
     useEffect(() => {
         if (currentUser) {
@@ -41,39 +44,6 @@ export function ProfilePage({ currentUser, onUserUpdate, onLogout, archivedEvent
             });
         }
     }, [currentUser]);
-
-    useEffect(() => {
-        if (activeTab !== 'audit' || !currentUser?._id) {
-            return;
-        }
-
-        let isMounted = true;
-
-        const loadAuditLogs = async () => {
-            try {
-                setAuditLoading(true);
-                setAuditError('');
-                const response = await authAPI.getAuditLogs(currentUser._id);
-                if (isMounted) {
-                    setAuditLogs(response.logs || []);
-                }
-            } catch (error) {
-                if (isMounted) {
-                    setAuditError(error.message || 'Failed to load audit logs.');
-                }
-            } finally {
-                if (isMounted) {
-                    setAuditLoading(false);
-                }
-            }
-        };
-
-        loadAuditLogs();
-
-        return () => {
-            isMounted = false;
-        };
-    }, [activeTab, currentUser]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -142,12 +112,8 @@ export function ProfilePage({ currentUser, onUserUpdate, onLogout, archivedEvent
     const uniqueIdLabel = getUserUniqueId(currentUser);
 
     return (
-        <div className="w-full bg-white/95 p-8 rounded-3xl shadow-2xl border border-indigo-100 backdrop-blur-sm">
-            <div className="mb-6">
-                <p className="text-sm font-semibold uppercase tracking-[0.25em] text-fuchsia-500">Profile</p>
-                <h2 className="mt-2 text-3xl font-black text-slate-800">{currentUser.name}</h2>
-                <p className="mt-2 text-slate-600">Your account details are shown here. You can update your profile information below.</p>
-            </div>
+        <div className="w-full rounded-3xl border border-indigo-100 bg-white/95 p-4 shadow-2xl backdrop-blur-sm sm:p-6">
+            <ProfileHeader currentUser={currentUser} />
 
             {updateError && (
                 <div className="mb-4 rounded-lg border border-red-200 bg-red-100 px-3 py-2 text-sm text-red-900">
@@ -160,252 +126,246 @@ export function ProfilePage({ currentUser, onUserUpdate, onLogout, archivedEvent
                 </div>
             )}
 
-            <div className="mt-8">
-                <div className="rounded-2xl border border-slate-200 bg-slate-100 p-2">
-                    <div className="grid grid-cols-3 gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setActiveTab('profile')}
-                            className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${activeTab === 'profile'
-                                ? 'bg-indigo-600 text-white shadow-lg'
-                                : 'bg-white text-slate-700 hover:bg-slate-50'
-                                }`}
-                        >
-                            Profile
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setActiveTab('archive')}
-                            className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${activeTab === 'archive'
-                                ? 'bg-indigo-600 text-white shadow-lg'
-                                : 'bg-white text-slate-700 hover:bg-slate-50'
-                                }`}
-                        >
-                            Archive
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setActiveTab('audit')}
-                            className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${activeTab === 'audit'
-                                ? 'bg-indigo-600 text-white shadow-lg'
-                                : 'bg-white text-slate-700 hover:bg-slate-50'
-                                }`}
-                        >
-                            Audit Log
-                        </button>
-                    </div>
+            {currentUser.isPaused && (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    This account is paused. Profile actions are currently disabled.
                 </div>
+            )}
+
+            <div className="mt-5">
+                <ProfileTabs currentUser={currentUser} activeTab={activeTab} />
 
                 {activeTab === 'profile' && (
-                    <div className="mt-6 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-semibold text-indigo-600">Profile Information</h3>
-                        <button
-                            type="button"
-                            onClick={() => setIsEditing(!isEditing)}
-                            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition"
-                        >
-                            {isEditing ? 'Cancel' : 'Edit Profile'}
-                        </button>
-                    </div>
-                    <div className="space-y-0">
-                        <div className="pb-2.5 border-b border-indigo-200">
-                            <p className="text-sm font-semibold text-indigo-600">Name</p>
-                            <p className="mt-1 text-lg font-bold text-slate-800">{currentUser.name}</p>
-                        </div>
-                        <div className="py-2.5 border-b border-indigo-200">
-                            <p className="text-sm font-semibold text-indigo-600">Total Followers</p>
-                            <p className="mt-1 text-lg font-bold text-slate-800">{currentUser.totalFollowers || 0}</p>
-                        </div>
-                        <div className="py-2.5 border-b border-indigo-200">
-                            <p className="text-sm font-semibold text-indigo-600">Total Followee</p>
-                            <p className="mt-1 text-lg font-bold text-slate-800">{currentUser.totalFollowee || 0}</p>
-                        </div>
-                        <div className="py-2.5 border-b border-indigo-200">
-                            <label className="block text-sm font-semibold text-indigo-600">Designation</label>
-                            {isEditing ? (
-                                <input
-                                    type="text"
-                                    name="designation"
-                                    value={formData.designation}
-                                    onChange={handleInputChange}
-                                    className="mt-1 w-full rounded-xl border border-indigo-200 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                                    placeholder="Enter your designation"
-                                />
-                            ) : (
-                                <p className="mt-1 text-lg font-bold text-slate-800">{currentUser.designation || 'Not provided'}</p>
-                            )}
-                        </div>
-                        <div className="py-2.5 border-b border-indigo-200">
-                            <label className="block text-sm font-semibold text-indigo-600">Achievement</label>
-                            {isEditing ? (
-                                <input
-                                    type="text"
-                                    name="achievement"
-                                    value={formData.achievement}
-                                    onChange={handleInputChange}
-                                    className="mt-1 w-full rounded-xl border border-indigo-200 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                                    placeholder="Enter your achievement"
-                                />
-                            ) : (
-                                <p className="mt-1 text-lg font-bold text-slate-800">{currentUser.achievement || 'Not provided'}</p>
-                            )}
-                        </div>
-                        <div className="py-2.5 border-b border-indigo-200">
-                            <p className="text-sm font-semibold text-indigo-600">Unique ID</p>
-                            <p className="mt-1 text-lg font-bold text-slate-800" dir="ltr">{uniqueIdLabel}</p>
-                        </div>
-                        <div className="py-2.5 border-b border-indigo-200">
-                            <p className="text-sm font-semibold text-indigo-600">Email</p>
-                            <p className="mt-1 text-lg font-bold text-slate-800">{currentUser.email}</p>
-                        </div>
-                        <div className="py-2.5 border-b border-indigo-200">
-                            <label className="block text-sm font-semibold text-indigo-600">Phone</label>
-                            {isEditing ? (
-                                <input
-                                    type="tel"
-                                    name="phone"
-                                    value={formData.phone}
-                                    onChange={handleInputChange}
-                                    className="mt-1 w-full rounded-xl border border-indigo-200 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                                    placeholder="Enter your phone number"
-                                />
-                            ) : (
-                                <p className="mt-1 text-lg font-bold text-slate-800">{currentUser.phone || 'Not provided'}</p>
-                            )}
-                        </div>
-                        <div className="py-2.5 border-b border-indigo-200">
-                            <label className="block text-sm font-semibold text-indigo-600">Country</label>
-                            {isEditing ? (
-                                <select
-                                    name="country"
-                                    value={formData.country}
-                                    onChange={handleInputChange}
-                                    className="mt-1 w-full rounded-xl border border-indigo-200 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                                >
-                                    <option value="">Select country</option>
-                                    {COUNTRY_OPTIONS.map((option) => (
-                                        <option key={option.value} value={option.value}>
-                                            {option.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            ) : (
-                                <p className="mt-1 text-lg font-bold text-slate-800">{getCountryLabel(currentUser.country)}</p>
-                            )}
-                        </div>
-                        <div className="py-2.5 border-b border-indigo-200">
-                            <label className="block text-sm font-semibold text-indigo-600">Date of Birth</label>
-                            {isEditing ? (
-                                <input
-                                    type="date"
-                                    name="dateOfBirth"
-                                    value={formData.dateOfBirth}
-                                    onChange={handleInputChange}
-                                    className="mt-1 w-full rounded-xl border border-indigo-200 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                                />
-                            ) : (
-                                <p className="mt-1 text-lg font-bold text-slate-800">
-                                    {currentUser.dateOfBirth ? new Date(currentUser.dateOfBirth).toLocaleDateString() : 'Not provided'}
-                                </p>
-                            )}
-                        </div>
-                        <div className="py-2.5 border-b border-indigo-200">
-                            <label className="block text-sm font-semibold text-indigo-600">Gender</label>
-                            {isEditing ? (
-                                <div className="mt-3 flex flex-wrap gap-4">
-                                    {[
-                                        { value: 'male', label: 'Male' },
-                                        { value: 'female', label: 'Female' },
-                                        { value: 'others', label: 'Others' },
-                                    ].map((option) => (
-                                        <label key={option.value} className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                                            <input
-                                                type="radio"
-                                                name="gender"
-                                                value={option.value}
-                                                checked={formData.gender === option.value}
-                                                onChange={handleInputChange}
-                                                className="h-4 w-4 border-indigo-300 text-indigo-600 focus:ring-indigo-400"
-                                            />
-                                            <span>{option.label}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className="mt-1 text-lg font-bold capitalize text-slate-800">{currentUser.gender || 'Not provided'}</p>
-                            )}
-                        </div>
-                        <div className="py-2.5 border-b border-indigo-200">
-                            <label className="block text-sm font-semibold text-indigo-600">Specialist At</label>
-                            {isEditing ? (
-                                <input
-                                    type="text"
-                                    name="specialistAt"
-                                    value={formData.specialistAt}
-                                    onChange={handleInputChange}
-                                    className="mt-1 w-full rounded-xl border border-indigo-200 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                                    placeholder="Enter your specialization"
-                                />
-                            ) : (
-                                <p className="mt-1 text-lg font-bold text-slate-800">{currentUser.specialistAt || 'Not provided'}</p>
-                            )}
-                        </div>
-                        <div className="py-2.5 border-b border-indigo-200">
-                            <label className="block text-sm font-semibold text-indigo-600">Profession</label>
-                            {isEditing ? (
-                                <input
-                                    type="text"
-                                    name="profession"
-                                    value={formData.profession}
-                                    onChange={handleInputChange}
-                                    className="mt-1 w-full rounded-xl border border-indigo-200 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                                    placeholder="Enter your profession"
-                                />
-                            ) : (
-                                <p className="mt-1 text-lg font-bold text-slate-800">{currentUser.profession || 'Not provided'}</p>
-                            )}
-                        </div>
-                        <div className="py-2.5 border-b border-indigo-200">
-                            <label className="block text-sm font-semibold text-indigo-600">Chamber</label>
-                            {isEditing ? (
-                                <input
-                                    type="text"
-                                    name="chamber"
-                                    value={formData.chamber}
-                                    onChange={handleInputChange}
-                                    className="mt-1 w-full rounded-xl border border-indigo-200 px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                                    placeholder="Enter your chamber"
-                                />
-                            ) : (
-                                <p className="mt-1 text-lg font-bold text-slate-800">{currentUser.chamber || 'Not provided'}</p>
-                            )}
-                        </div>
-                        <div className="pt-2.5">
-                            <p className="text-sm font-semibold text-indigo-600">Member Since</p>
-                            <p className="mt-1 text-lg font-bold text-slate-800">
-                                {memberSinceDate
-                                    ? new Date(memberSinceDate).toLocaleDateString('en-US', {
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric'
-                                    })
-                                    : 'Not available'}
-                            </p>
-                        </div>
-                    </div>
-                    {isEditing && (
-                        <div className="mt-6 flex justify-end">
+                    <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <p className="text-sm font-semibold text-fuchsia-500">Profile Information</p>
+                                <p className="mt-1 text-sm text-slate-500">Review or update your personal details.</p>
+                            </div>
                             <button
                                 type="button"
-                                onClick={handleUpdate}
-                                disabled={isUpdating}
-                                className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 transition disabled:cursor-not-allowed disabled:opacity-70"
+                                onClick={() => setIsEditing(!isEditing)}
+                                disabled={currentUser.isPaused}
+                                className={`rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                                    isEditing
+                                        ? 'bg-slate-900 text-white hover:bg-slate-800'
+                                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                }`}
                             >
-                                {isUpdating ? 'Updating...' : 'Update Profile'}
+                                {isEditing ? 'Done editing' : 'Edit profile'}
                             </button>
                         </div>
-                    )}
+
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                            <div className="rounded-2xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white p-3">
+                                <p className="text-sm font-semibold text-indigo-500">Identity</p>
+                                <div className="mt-2 space-y-2">
+                                    <div>
+                                        <p className="text-sm font-medium text-slate-500">Name</p>
+                                        <p className="mt-1 text-base font-bold text-slate-900">{currentUser.name}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-slate-500">Unique ID</p>
+                                        <p className="mt-1 text-base font-bold text-slate-900" dir="ltr">{uniqueIdLabel}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-medium text-slate-500">Email</p>
+                                        <p className="mt-1 text-base font-bold text-slate-900 break-all">{currentUser.email}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                                    <p className="text-sm font-medium text-slate-500">Followers</p>
+                                    <p className="mt-2 text-3xl font-black text-slate-900">{currentUser.totalFollowers || 0}</p>
+                                </div>
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                                    <p className="text-sm font-medium text-slate-500">Followee</p>
+                                    <p className="mt-2 text-3xl font-black text-slate-900">{currentUser.totalFollowee || 0}</p>
+                                </div>
+                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:col-span-2">
+                                    <p className="text-sm font-medium text-slate-500">Member Since</p>
+                                    <p className="mt-2 text-base font-semibold text-slate-800">
+                                        {memberSinceDate
+                                            ? new Date(memberSinceDate).toLocaleDateString('en-US', {
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric',
+                                            })
+                                            : 'Not available'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                                <label className="block text-sm font-medium text-slate-500">Designation</label>
+                                {isEditing ? (
+                                    <input
+                                        type="text"
+                                        name="designation"
+                                        value={formData.designation}
+                                        onChange={handleInputChange}
+                                        className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                        placeholder="Enter your designation"
+                                    />
+                                ) : (
+                                    <p className="mt-2 text-sm font-semibold text-slate-900">{currentUser.designation || 'Not provided'}</p>
+                                )}
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                                <label className="block text-sm font-medium text-slate-500">Achievement</label>
+                                {isEditing ? (
+                                    <input
+                                        type="text"
+                                        name="achievement"
+                                        value={formData.achievement}
+                                        onChange={handleInputChange}
+                                        className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                        placeholder="Enter your achievement"
+                                    />
+                                ) : (
+                                    <p className="mt-2 text-sm font-semibold text-slate-900">{currentUser.achievement || 'Not provided'}</p>
+                                )}
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                                <label className="block text-sm font-medium text-slate-500">Phone</label>
+                                {isEditing ? (
+                                    <input
+                                        type="tel"
+                                        name="phone"
+                                        value={formData.phone}
+                                        onChange={handleInputChange}
+                                        className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                        placeholder="Enter your phone number"
+                                    />
+                                ) : (
+                                    <p className="mt-2 text-sm font-semibold text-slate-900">{currentUser.phone || 'Not provided'}</p>
+                                )}
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                                <label className="block text-sm font-medium text-slate-500">Country</label>
+                                {isEditing ? (
+                                    <select
+                                        name="country"
+                                        value={formData.country}
+                                        onChange={handleInputChange}
+                                        className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                    >
+                                        <option value="">Select country</option>
+                                        {COUNTRY_OPTIONS.map((option) => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <p className="mt-2 text-sm font-semibold text-slate-900">{getCountryLabel(currentUser.country)}</p>
+                                )}
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                                <label className="block text-sm font-medium text-slate-500">Date of Birth</label>
+                                {isEditing ? (
+                                    <input
+                                        type="date"
+                                        name="dateOfBirth"
+                                        value={formData.dateOfBirth}
+                                        onChange={handleInputChange}
+                                        className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                    />
+                                ) : (
+                                    <p className="mt-2 text-sm font-semibold text-slate-900">
+                                        {currentUser.dateOfBirth ? new Date(currentUser.dateOfBirth).toLocaleDateString() : 'Not provided'}
+                                    </p>
+                                )}
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                                <label className="block text-sm font-medium text-slate-500">Gender</label>
+                                {isEditing ? (
+                                    <div className="mt-3 flex flex-wrap gap-3">
+                                        {[
+                                            { value: 'male', label: 'Male' },
+                                            { value: 'female', label: 'Female' },
+                                            { value: 'others', label: 'Others' },
+                                        ].map((option) => (
+                                            <label key={option.value} className="flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700">
+                                                <input
+                                                    type="radio"
+                                                    name="gender"
+                                                    value={option.value}
+                                                    checked={formData.gender === option.value}
+                                                    onChange={handleInputChange}
+                                                    className="h-4 w-4 border-indigo-300 text-indigo-600 focus:ring-indigo-400"
+                                                />
+                                                <span>{option.label}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p className="mt-2 text-sm font-semibold capitalize text-slate-900">{currentUser.gender || 'Not provided'}</p>
+                                )}
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                                <label className="block text-sm font-medium text-slate-500">Specialist At</label>
+                                {isEditing ? (
+                                    <input
+                                        type="text"
+                                        name="specialistAt"
+                                        value={formData.specialistAt}
+                                        onChange={handleInputChange}
+                                        className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                        placeholder="Enter your specialization"
+                                    />
+                                ) : (
+                                    <p className="mt-2 text-sm font-semibold text-slate-900">{currentUser.specialistAt || 'Not provided'}</p>
+                                )}
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                                <label className="block text-sm font-medium text-slate-500">Profession</label>
+                                {isEditing ? (
+                                    <input
+                                        type="text"
+                                        name="profession"
+                                        value={formData.profession}
+                                        onChange={handleInputChange}
+                                        className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                        placeholder="Enter your profession"
+                                    />
+                                ) : (
+                                    <p className="mt-2 text-sm font-semibold text-slate-900">{currentUser.profession || 'Not provided'}</p>
+                                )}
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:col-span-2">
+                                <label className="block text-sm font-medium text-slate-500">Chamber</label>
+                                {isEditing ? (
+                                    <input
+                                        type="text"
+                                        name="chamber"
+                                        value={formData.chamber}
+                                        onChange={handleInputChange}
+                                        className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                        placeholder="Enter your chamber"
+                                    />
+                                ) : (
+                                    <p className="mt-2 text-sm font-semibold text-slate-900">{currentUser.chamber || 'Not provided'}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {isEditing && (
+                            <div className="mt-6 flex justify-end">
+                                <button
+                                    type="button"
+                                    onClick={handleUpdate}
+                                    disabled={isUpdating}
+                                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+                                >
+                                    {isUpdating ? 'Updating...' : 'Save changes'}
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -443,7 +403,7 @@ export function ProfilePage({ currentUser, onUserUpdate, onLogout, archivedEvent
                                 return (
                                 <div key={event._id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold uppercase tracking-[0.15em] text-slate-700">
+                                        <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700">
                                             Archived
                                         </span>
                                         <div className="text-xs text-slate-500">
@@ -452,6 +412,19 @@ export function ProfilePage({ currentUser, onUserUpdate, onLogout, archivedEvent
                                         </div>
                                     </div>
                                     <p className="mt-3 text-base font-semibold text-slate-800">{event.description}</p>
+                                    {event.message && (
+                                        <div className="mt-3 rounded-xl border border-indigo-100 bg-white p-3 text-sm text-slate-700">
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                <p className="text-xs font-bold text-indigo-500">Message</p>
+                                                {event.messageAuthor?.name && (
+                                                    <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                                                        By {event.messageAuthor.name}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="mt-1 whitespace-pre-wrap font-medium">{event.message}</p>
+                                        </div>
+                                    )}
                                     <div className="mt-3 space-y-1 text-sm text-slate-600">
                                         <p>Date: {event.date ? new Date(event.date).toLocaleDateString() : 'Not available'}</p>
                                         <p>Duration: {event.timeDuration ? `${event.timeDuration} minutes` : 'Not available'}</p>
@@ -466,60 +439,86 @@ export function ProfilePage({ currentUser, onUserUpdate, onLogout, archivedEvent
                     </div>
                 )}
 
-                {activeTab === 'audit' && (
+                {activeTab === 'expired' && (
                     <div className="mt-6 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm">
                         <div className="mb-4">
-                            <h3 className="text-lg font-semibold text-slate-800">Audit Log</h3>
-                            <p className="mt-1 text-sm text-slate-500">Recent login and password reset activity for this account.</p>
+                            <h3 className="text-lg font-semibold text-slate-800">Expired Events</h3>
+                            <p className="mt-1 text-sm text-slate-500">Events whose timers have finished appear here.</p>
                         </div>
 
-                        {auditLoading && (
+                        {expiredLoading && (
                             <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                                Loading audit logs...
+                                Loading expired events...
                             </div>
                         )}
 
-                        {!auditLoading && auditError && (
+                        {!expiredLoading && expiredError && (
                             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                                {auditError}
+                                {expiredError}
                             </div>
                         )}
 
-                        {!auditLoading && !auditError && auditLogs.length === 0 && (
+                        {!expiredLoading && !expiredError && expiredEvents.length === 0 && (
                             <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
-                                No audit log entries found.
+                                No expired events found.
                             </div>
                         )}
 
-                        {!auditLoading && !auditError && auditLogs.length > 0 && (
-                            <div className="space-y-3">
-                                {auditLogs.map((log) => (
-                                    <div key={log._id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                                        <div className="flex flex-wrap items-center justify-between gap-2">
-                                            <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.15em] ${
-                                                log.status === 'success'
-                                                    ? 'bg-emerald-100 text-emerald-700'
-                                                    : log.status === 'failed'
-                                                        ? 'bg-rose-100 text-rose-700'
-                                                        : 'bg-slate-200 text-slate-700'
-                                            }`}>
-                                                {log.status}
-                                            </span>
-                                            <span className="text-xs text-slate-500">
-                                                {new Date(log.createdAt).toLocaleString()}
-                                            </span>
+                        {!expiredLoading && !expiredError && expiredEvents.length > 0 && (
+                            <div className="space-y-4">
+                                {expiredEvents.map((event) => {
+                                    const createdLabel = formatEventTimestamp(event.createdAt);
+                                    const expiredLabel = formatEventTimestamp(event.date);
+
+                                    return (
+                                        <div key={event._id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                                <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
+                                                    {event.status || 'Expired'}
+                                                </span>
+                                                <div className="text-xs text-slate-500">
+                                                    <div>{createdLabel ? `Created ${createdLabel}` : 'Created date not available'}</div>
+                                                    <div>{expiredLabel ? `Expired ${expiredLabel}` : 'Expired date not available'}</div>
+                                                </div>
+                                            </div>
+                                            <p className="mt-3 text-base font-semibold text-slate-800">{event.description}</p>
+                                            {event.message && (
+                                                <div className="mt-3 rounded-xl border border-indigo-100 bg-white p-3 text-sm text-slate-700">
+                                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                                        <p className="text-xs font-bold text-indigo-500">Message</p>
+                                                        {event.messageAuthor?.name && (
+                                                            <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                                                                By {event.messageAuthor.name}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className="mt-1 whitespace-pre-wrap font-medium">{event.message}</p>
+                                                </div>
+                                            )}
+                                            <div className="mt-3 space-y-1 text-sm text-slate-600">
+                                                <p>Date: {event.date ? new Date(event.date).toLocaleDateString() : 'Not available'}</p>
+                                                <p>Duration: {event.timeDuration ? `${event.timeDuration} minutes` : 'Not available'}</p>
+                                                <p>Creator: {event.creator?.name || 'Unknown user'}</p>
+                                                <p>Target: {event.target?.name || 'Unknown user'}</p>
+                                            </div>
                                         </div>
-                                        <p className="mt-3 text-sm font-semibold text-slate-800">{log.action.replaceAll('_', ' ')}</p>
-                                        <p className="mt-1 text-sm text-slate-600">{log.details || 'No details available.'}</p>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
                 )}
+
             </div>
 
             <div className="mt-8 flex flex-col items-start gap-3">
+                <button
+                    type="button"
+                    onClick={() => navigate('/setting')}
+                    className="text-sm font-semibold text-indigo-700 transition hover:text-fuchsia-600"
+                >
+                    Setting
+                </button>
                 <button
                     type="button"
                     onClick={() => navigate('/feedback')}

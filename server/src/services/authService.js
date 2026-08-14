@@ -1,16 +1,22 @@
 const bcrypt = require('bcrypt');
 const User = require('../models/User');
 const Follower = require('../models/Follower');
+const Block = require('../models/Block');
 const PasswordResetOtp = require('../models/PasswordResetOtp');
 const auditLogService = require('./auditLogService');
 const { RESET_OTP_TTL_MINUTES, MAX_RESET_OTP_ATTEMPTS, generateOtp, hashOtp } = require('../utils/otp');
 const { isValidObjectId } = require('../utils/validators');
+const { signAccessToken } = require('../utils/jwt');
 
 const buildSafeUser = (user) => ({
     _id: user._id,
     uniqueID: user.uniqueID,
     name: user.name,
     email: user.email,
+    // Legacy documents may not have role until the role migration runs.
+    role: user.role || 'user',
+    isPaused: Boolean(user.isPaused),
+    pausedAt: user.pausedAt,
     phone: user.phone,
     country: user.country,
     dateOfBirth: user.dateOfBirth,
@@ -34,7 +40,7 @@ const enrichUsersWithFollowData = async (users, viewerUserId = null) => {
     const userIds = normalizedUsers.map((user) => user._id);
     const normalizedViewerUserId = isValidObjectId(viewerUserId) ? viewerUserId : null;
 
-    const [followerCounts, followeeCounts, viewerFollows] = await Promise.all([
+    const [followerCounts, followeeCounts, viewerFollows, blockedByViewer, viewerBlockedUsers] = await Promise.all([
         Follower.aggregate([
             { $match: { followeeUser: { $in: userIds } } },
             { $group: { _id: '$followeeUser', totalFollowers: { $sum: 1 } } },
@@ -49,6 +55,12 @@ const enrichUsersWithFollowData = async (users, viewerUserId = null) => {
                 followeeUser: { $in: userIds },
             }).select('followeeUser').lean()
             : [],
+        normalizedViewerUserId
+            ? Block.find({ blockerUser: normalizedViewerUserId, blockedUser: { $in: userIds } }).select('blockedUser').lean()
+            : [],
+        normalizedViewerUserId
+            ? Block.find({ blockerUser: { $in: userIds }, blockedUser: normalizedViewerUserId }).select('blockerUser').lean()
+            : [],
     ]);
 
     const followerCountMap = new Map(
@@ -60,13 +72,33 @@ const enrichUsersWithFollowData = async (users, viewerUserId = null) => {
     const viewerFollowingSet = new Set(
         viewerFollows.map((entry) => String(entry.followeeUser))
     );
+    const blockedByViewerSet = new Set(
+        blockedByViewer.map((entry) => String(entry.blockedUser))
+    );
+    const viewerBlockedBySet = new Set(
+        viewerBlockedUsers.map((entry) => String(entry.blockerUser))
+    );
 
-    return normalizedUsers.map((user) => ({
-        ...user,
-        totalFollowers: followerCountMap.get(String(user._id)) || 0,
-        totalFollowee: followeeCountMap.get(String(user._id)) || 0,
-        isFollowing: normalizedViewerUserId ? viewerFollowingSet.has(String(user._id)) : false,
-    }));
+    return normalizedUsers
+        .filter((user) => {
+            if (!normalizedViewerUserId) {
+                return true;
+            }
+
+            if (String(user._id) === String(normalizedViewerUserId)) {
+                return true;
+            }
+
+            return !blockedByViewerSet.has(String(user._id)) && !viewerBlockedBySet.has(String(user._id));
+        })
+        .map((user) => ({
+            ...user,
+            totalFollowers: followerCountMap.get(String(user._id)) || 0,
+            totalFollowee: followeeCountMap.get(String(user._id)) || 0,
+            isFollowing: normalizedViewerUserId ? viewerFollowingSet.has(String(user._id)) : false,
+            isBlockedByViewer: blockedByViewerSet.has(String(user._id)),
+            isBlockedByUser: viewerBlockedBySet.has(String(user._id)),
+        }));
 };
 
 const authService = {
@@ -108,7 +140,7 @@ const authService = {
             details: 'User account created.',
         });
         const [safeUser] = await enrichUsersWithFollowData([user], user._id);
-        return safeUser;
+        return { user: safeUser, token: signAccessToken(user) };
     },
 
     // Login user
@@ -144,6 +176,12 @@ const authService = {
             throw error;
         }
 
+        if (user.isPaused) {
+            const error = new Error('This account is paused. Please contact an administrator.');
+            error.statusCode = 403;
+            throw error;
+        }
+
         await auditLogService.create({
             userId: user._id,
             email: user.email,
@@ -155,7 +193,7 @@ const authService = {
         });
 
         const [safeUser] = await enrichUsersWithFollowData([user], user._id);
-        return safeUser;
+        return { user: safeUser, token: signAccessToken(user) };
     },
 
     requestPasswordReset: async (email, context = {}) => {
@@ -349,10 +387,64 @@ const authService = {
         return auditLogService.getUserLogs(userId);
     },
 
+    getBlockedUsers: async (userId) => {
+        const user = await User.findById(userId).select('_id');
+        if (!user) {
+            const error = new Error('User not found.');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const blockedEntries = await Block.find({ blockerUser: userId })
+            .sort({ createdAt: -1 })
+            .populate('blockedUser', '-password -sessionVersion -passwordChangedAt')
+            .lean();
+
+        return blockedEntries
+            .filter((entry) => entry.blockedUser)
+            .map((entry) => ({
+                _id: entry._id,
+                blockedAt: entry.createdAt,
+                user: buildSafeUser(entry.blockedUser),
+            }));
+    },
+
     // Get all users
     getAllUsers: async (viewerUserId = null) => {
         const users = await User.find({}, '-password -sessionVersion -passwordChangedAt').sort({ uniqueID: 1 }).lean();
         return enrichUsersWithFollowData(users, viewerUserId);
+    },
+
+    setUserPaused: async (actorUserId, targetUserId, paused) => {
+        const [actor, target] = await Promise.all([
+            User.findById(actorUserId).select('_id role'),
+            User.findById(targetUserId).select('_id role isPaused'),
+        ]);
+
+        if (!actor || !target) {
+            const error = new Error('User not found.');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const actorRole = String(actor.role || '').toLowerCase();
+        const targetRole = String(target.role || '').toLowerCase();
+        const canPauseTarget = actorRole === 'superadmin'
+            ? targetRole !== 'superadmin'
+            : actorRole === 'admin' && targetRole === 'user';
+
+        if (!canPauseTarget || String(actor._id) === String(target._id)) {
+            const error = new Error('You do not have permission to pause this account.');
+            error.statusCode = 403;
+            throw error;
+        }
+
+        target.isPaused = Boolean(paused);
+        target.pausedAt = target.isPaused ? new Date() : undefined;
+        await target.save();
+
+        const [safeUser] = await enrichUsersWithFollowData([target], actor._id);
+        return safeUser;
     },
 
     // Get single user
@@ -439,6 +531,47 @@ const authService = {
 
         return {
             isFollowing,
+            currentUser: currentUserProfile,
+            targetUser: targetUserProfile,
+        };
+    },
+
+    toggleBlock: async (blockerUserId, blockedUserId) => {
+        const [blockerUser, blockedUser] = await Promise.all([
+            User.findById(blockerUserId),
+            User.findById(blockedUserId),
+        ]);
+
+        if (!blockerUser || !blockedUser) {
+            const error = new Error('User not found.');
+            error.statusCode = 404;
+            throw error;
+        }
+
+        const existingBlock = await Block.findOne({
+            blockerUser: blockerUserId,
+            blockedUser: blockedUserId,
+        });
+
+        let isBlocked = false;
+
+        if (existingBlock) {
+            await Block.deleteOne({ _id: existingBlock._id });
+        } else {
+            await Block.create({
+                blockerUser: blockerUserId,
+                blockedUser: blockedUserId,
+            });
+            isBlocked = true;
+        }
+
+        const [currentUserProfile, targetUserProfile] = await enrichUsersWithFollowData(
+            [blockerUser, blockedUser],
+            blockerUser._id
+        );
+
+        return {
+            isBlocked,
             currentUser: currentUserProfile,
             targetUser: targetUserProfile,
         };
