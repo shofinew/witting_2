@@ -226,7 +226,7 @@ export function ProfilePage({
                                 />
                             </div>
                             <p className="mt-2 text-xs text-indigo-700">
-                                Name and email start your profile at 20%. Complete the remaining details to reach 100%.
+                                Complete the remaining details to reach 100% for your friend and client satisfaction.
                             </p>
                         </div>
 
