@@ -163,6 +163,11 @@ export function ProfilePage({
     const identityCompletion = ['name', 'email'].filter((field) => hasValue(currentUser[field])).length * 10;
     const additionalCompletion = requiredProfileFields.filter((field) => hasValue(currentUser[field])).length;
     const profileCompletion = Math.min(100, Math.round(identityCompletion + (additionalCompletion / requiredProfileFields.length) * 80));
+    const progressColor = profileCompletion === 100
+        ? 'bg-emerald-500'
+        : profileCompletion >= 31
+            ? 'bg-yellow-400'
+            : 'bg-red-500';
 
     return (
         <div className="w-full rounded-3xl border border-indigo-100 bg-white/95 p-4 shadow-2xl backdrop-blur-sm sm:p-6">
@@ -216,7 +221,7 @@ export function ProfilePage({
                             </div>
                             <div className="mt-2 h-3 overflow-hidden rounded-full bg-white" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={profileCompletion}>
                                 <div
-                                    className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 to-indigo-600 transition-all duration-500"
+                                    className={`h-full rounded-full transition-all duration-500 ${progressColor}`}
                                     style={{ width: `${profileCompletion}%` }}
                                 />
                             </div>
