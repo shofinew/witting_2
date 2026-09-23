@@ -12,6 +12,28 @@ const getEighteenYearsAgo = () => {
     return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
 };
 
+const formatDateForInput = (value) => {
+    if (!value) {
+        return '';
+    }
+
+    const stringValue = String(value);
+    if (/^\d{4}-\d{2}-\d{2}/.test(stringValue)) {
+        return stringValue.slice(0, 10);
+    }
+
+    try {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return '';
+        }
+
+        return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+    } catch {
+        return '';
+    }
+};
+
 export function ProfilePage({
     currentUser,
     onUserUpdate,
@@ -40,7 +62,7 @@ export function ProfilePage({
             setFormData({
                 phone: currentUser.phone || '',
                 country: currentUser.country || '',
-                dateOfBirth: currentUser.dateOfBirth ? new Date(currentUser.dateOfBirth).toISOString().split('T')[0] : '',
+                dateOfBirth: formatDateForInput(currentUser.dateOfBirth),
                 gender: currentUser.gender || '',
                 specialistAt: currentUser.specialistAt || '',
                 profession: currentUser.profession || '',
@@ -64,7 +86,11 @@ export function ProfilePage({
             return { valid: true };
         }
 
-        const birthDate = new Date(dateOfBirthStr);
+        const birthDate = new Date(`${dateOfBirthStr}T00:00:00`);
+        if (Number.isNaN(birthDate.getTime())) {
+            return { valid: false, message: 'Please enter a valid date of birth.' };
+        }
+
         const today = new Date();
         let age = today.getFullYear() - birthDate.getFullYear();
         const monthDiff = today.getMonth() - birthDate.getMonth();
@@ -86,28 +112,34 @@ export function ProfilePage({
         setUpdateSuccess('');
 
         try {
+            if (!currentUser?._id) {
+                throw new Error('Your profile could not be identified. Please log in again.');
+            }
+
             if (formData.dateOfBirth) {
                 const dateValidation = validateDateOfBirth(formData.dateOfBirth);
                 if (!dateValidation.valid) {
-                    setUpdateError(dateValidation.message);
-                    setIsUpdating(false);
-                    return;
+                    throw new Error(dateValidation.message);
                 }
             }
 
-            const updates = {};
-            Object.keys(formData).forEach(key => {
-                if (formData[key] !== '') {
-                    updates[key] = key === 'dateOfBirth' ? new Date(formData[key]) : formData[key];
-                }
-            });
+            const updates = {
+                ...formData,
+                // Keep this as YYYY-MM-DD so the server validates it as a date-only value.
+                dateOfBirth: formData.dateOfBirth || null,
+                country: formData.country || null,
+            };
 
             const response = await authAPI.updateProfile(currentUser._id, updates);
+            if (!response?.user) {
+                throw new Error('Profile update returned no user data.');
+            }
+
             setUpdateSuccess('Profile updated successfully!');
             onUserUpdate(response.user);
             setIsEditing(false);
         } catch (error) {
-            setUpdateError(error.message || 'Failed to update profile.');
+            setUpdateError(error instanceof Error ? error.message : 'Failed to update profile.');
         } finally {
             setIsUpdating(false);
         }
