@@ -67,7 +67,7 @@ export function TotalEventsPage({
             onArchive={onArchive}
             onStart={onStart}
             hideStartAndArchive={true}
-            description="Your total event live here."
+            description="Your total confirmed event live here."
             hideSerial={true}
             headerContent={
                 <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
