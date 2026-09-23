@@ -256,8 +256,8 @@ const validateDateOfBirth = (dateOfBirth) => {
         age--;
     }
 
-    if (age < 16) {
-        return { valid: false, message: 'You must be at least 16 years old.' };
+    if (age < 18) {
+        return { valid: false, message: 'You must be 18 Years Old.' };
     }
 
     return { valid: true };

@@ -6,6 +6,12 @@ import { getUserUniqueId } from '../utils/user';
 import { ProfileTabs } from '../components/ProfileTabs';
 import { ProfileHeader } from '../components/ProfileHeader';
 
+const getEighteenYearsAgo = () => {
+    const date = new Date();
+    date.setFullYear(date.getFullYear() - 18);
+    return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+};
+
 export function ProfilePage({
     currentUser,
     onUserUpdate,
@@ -67,8 +73,8 @@ export function ProfilePage({
             age--;
         }
 
-        if (age < 16) {
-            return { valid: false, message: 'You must be at least 16 years old.' };
+        if (age < 18) {
+            return { valid: false, message: 'You must be 18 Years Old.' };
         }
 
         return { valid: true };
@@ -272,6 +278,7 @@ export function ProfilePage({
                                         type="date"
                                         name="dateOfBirth"
                                         value={formData.dateOfBirth}
+                                        max={getEighteenYearsAgo()}
                                         onChange={handleInputChange}
                                         className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                                     />
@@ -279,6 +286,9 @@ export function ProfilePage({
                                     <p className="mt-2 text-sm font-semibold text-slate-900">
                                         {currentUser.dateOfBirth ? new Date(currentUser.dateOfBirth).toLocaleDateString() : 'Not provided'}
                                     </p>
+                                )}
+                                {isEditing && (
+                                    <p className="mt-2 text-xs font-semibold text-rose-600">You must be 18 Years Old</p>
                                 )}
                             </div>
                             <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
