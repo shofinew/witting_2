@@ -457,6 +457,9 @@ function App() {
         try {
             setIsSubmitting(true);
             const data = await authAPI.login(loginEmail, loginPassword);
+            // Persist before changing the UI so the first protected request
+            // after login has the current session identity headers.
+            localStorage.setItem('wittingUser', JSON.stringify(data.user));
             setCurrentUser(data.user);
             setLoginPassword('');
             clearPasswordResetState();
