@@ -12,6 +12,18 @@ const DETAIL_FIELDS = [
     { label: 'Chamber', key: 'chamber' },
 ];
 
+const PROFILE_COMPLETION_FIELDS = [
+    'designation',
+    'achievement',
+    'phone',
+    'country',
+    'dateOfBirth',
+    'gender',
+    'specialistAt',
+    'profession',
+    'chamber',
+];
+
 export function UserProfileModal({ user, currentUser, onClose, onUserChange, onCurrentUserUpdate }) {
     const [followError, setFollowError] = useState('');
     const [isFollowSubmitting, setIsFollowSubmitting] = useState(false);
@@ -31,6 +43,15 @@ export function UserProfileModal({ user, currentUser, onClose, onUserChange, onC
     const canFollow = currentUser?._id && currentUser._id !== user._id && !user.isPaused;
     const isBlocked = Boolean(user.isBlockedByViewer || user.isBlockedByUser);
     const uniqueIdLabel = getUserUniqueId(user);
+    const hasValue = (value) => value !== undefined && value !== null && String(value).trim() !== '';
+    const identityCompletion = ['name', 'email'].filter((field) => hasValue(user[field])).length * 10;
+    const additionalCompletion = PROFILE_COMPLETION_FIELDS.filter((field) => hasValue(user[field])).length;
+    const profileCompletion = Math.min(100, Math.round(identityCompletion + (additionalCompletion / PROFILE_COMPLETION_FIELDS.length) * 80));
+    const progressColor = profileCompletion === 100
+        ? 'bg-emerald-500'
+        : profileCompletion >= 31
+            ? 'bg-yellow-400'
+            : 'bg-red-500';
     const initials = String(user.name || 'U')
         .split(' ')
         .filter(Boolean)
@@ -229,6 +250,22 @@ export function UserProfileModal({ user, currentUser, onClose, onUserChange, onC
                             This account is paused. Actions are currently disabled.
                         </div>
                     )}
+
+                    <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-3" aria-label={`Profile completion: ${profileCompletion}%`}>
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-xs font-bold text-indigo-900">Profile completion</p>
+                            <p className="text-xs font-black text-indigo-700">{profileCompletion}%</p>
+                        </div>
+                        <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={profileCompletion}>
+                            <div
+                                className={`h-full rounded-full transition-all duration-500 ${progressColor}`}
+                                style={{ width: `${profileCompletion}%` }}
+                            />
+                        </div>
+                        <p className="mt-2 text-[11px] text-indigo-700">
+                            Complete the remaining details to reach 100% for your friend and client satisfaction.
+                        </p>
+                    </div>
 
                     {canViewEventHistory && (
                         <div className="rounded-xl border border-slate-200 bg-slate-100 p-1.5">
