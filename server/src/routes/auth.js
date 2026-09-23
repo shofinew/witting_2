@@ -21,8 +21,7 @@ router.post('/login', authRateLimiter, validateLoginRequest, authController.logi
 router.post('/forgot-password', authRateLimiter, validateForgotPasswordRequest, authController.requestPasswordReset);
 router.post('/reset-password', authRateLimiter, validateResetPasswordRequest, authController.resetPassword);
 router.use(requireAuth);
-// This endpoint validates an already authenticated token. It must not consume
-// the public login/register attempt bucket.
+// This endpoint validates the current session identity.
 router.post('/session/validate', validateSessionRequest, authController.validateSession);
 router.post('/follow', validateFollowRequest, authController.toggleFollow);
 router.post('/block', validateBlockRequest, authController.toggleBlock);

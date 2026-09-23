@@ -6,7 +6,6 @@ const PasswordResetOtp = require('../models/PasswordResetOtp');
 const auditLogService = require('./auditLogService');
 const { RESET_OTP_TTL_MINUTES, MAX_RESET_OTP_ATTEMPTS, generateOtp, hashOtp } = require('../utils/otp');
 const { isValidObjectId } = require('../utils/validators');
-const { signAccessToken } = require('../utils/jwt');
 
 const buildSafeUser = (user) => ({
     _id: user._id,
@@ -140,7 +139,7 @@ const authService = {
             details: 'User account created.',
         });
         const [safeUser] = await enrichUsersWithFollowData([user], user._id);
-        return { user: safeUser, token: signAccessToken(user) };
+        return { user: safeUser };
     },
 
     // Login user
@@ -193,7 +192,7 @@ const authService = {
         });
 
         const [safeUser] = await enrichUsersWithFollowData([user], user._id);
-        return { user: safeUser, token: signAccessToken(user) };
+        return { user: safeUser };
     },
 
     requestPasswordReset: async (email, context = {}) => {

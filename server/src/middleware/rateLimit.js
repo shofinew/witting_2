@@ -1,5 +1,3 @@
-const { verifyAccessToken } = require('../utils/jwt');
-
 const parsePositiveInteger = (value, fallback) => {
     const parsed = Number.parseInt(value, 10);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
@@ -43,18 +41,11 @@ const apiRateLimiter = createRateLimiter({
     maxRequests: parsePositiveInteger(process.env.API_RATE_LIMIT_MAX_REQUESTS, 300),
     message: process.env.API_RATE_LIMIT_MESSAGE || 'Too many API requests. Please try again later.',
     // Authenticated users should not share a bucket when the server is behind
-    // a reverse proxy/NAT. Invalid bearer tokens still use the IP bucket.
+    // a reverse proxy/NAT.
     keyGenerator: (req) => {
-        const authorization = req.get('authorization') || '';
-        if (authorization.startsWith('Bearer ')) {
-            try {
-                const payload = verifyAccessToken(authorization.slice(7));
-                if (payload.sub) {
-                    return `user:${payload.sub}`;
-                }
-            } catch {
-                // Fall through to the client IP for invalid/expired tokens.
-            }
+        const userId = req.get('x-user-id');
+        if (userId) {
+            return `user:${userId}`;
         }
 
         return `ip:${req.ip || req.socket?.remoteAddress || 'unknown'}`;

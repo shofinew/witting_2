@@ -1,25 +1,23 @@
 import { API_URL } from './constants';
 
-const ACCESS_TOKEN_KEY = 'wittingAccessToken';
-
-export const getAccessToken = () => localStorage.getItem(ACCESS_TOKEN_KEY);
-export const setAccessToken = (token) => {
-    if (token) localStorage.setItem(ACCESS_TOKEN_KEY, token);
-};
-export const clearAccessToken = () => localStorage.removeItem(ACCESS_TOKEN_KEY);
-
-// Keep authentication centralized so every API request carries the current token.
+// Keep the current session identity centralized so every API request carries it.
 const fetch = (input, init = {}) => {
     const headers = new Headers(init.headers || {});
-    const token = getAccessToken();
-    if (token) headers.set('Authorization', `Bearer ${token}`);
+    try {
+        const savedUser = JSON.parse(localStorage.getItem('wittingUser') || 'null');
+        if (savedUser?._id) {
+            headers.set('X-User-Id', String(savedUser._id));
+            headers.set('X-Session-Version', String(savedUser.sessionVersion || 0));
+        }
+    } catch {
+        // Ignore malformed local session data; the server will reject the request.
+    }
     return window.fetch(input, { ...init, headers });
 };
 
 // Safe JSON parser with proper error handling
 const safeJsonParse = async (response, fallbackMessage) => {
     if (response.status === 401) {
-        clearAccessToken();
         window.dispatchEvent(new CustomEvent('witting:auth-expired'));
     }
 

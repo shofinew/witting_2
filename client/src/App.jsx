@@ -15,7 +15,7 @@ import { FeedbackPage } from './pages/FeedbackPage';
 import { UserProfilePage } from './pages/UserProfilePage';
 import { TotalEventsPage } from './pages/TotalEventsPage';
 import { PAGE_TO_STATUS } from './constants';
-import { authAPI, userAPI, eventAPI, notificationAPI, setAccessToken, clearAccessToken, getAccessToken } from './api';
+import { authAPI, userAPI, eventAPI, notificationAPI } from './api';
 import { canManageUsers, getUserUniqueId } from './utils/user';
 
 const isSameLocalDate = (value, today) => {
@@ -82,7 +82,7 @@ function App() {
     const [currentUser, setCurrentUser] = useState(() => {
         try {
             const savedUser = localStorage.getItem('wittingUser');
-            return savedUser && getAccessToken() ? JSON.parse(savedUser) : null;
+            return savedUser ? JSON.parse(savedUser) : null;
         } catch {
             return null;
         }
@@ -244,13 +244,11 @@ function App() {
                 setAuthView('login');
                 setAuthError(result.reason || 'Your session has expired.');
                 setAuthSuccess('');
-                clearAccessToken();
                 localStorage.removeItem('wittingUser');
                 navigate('/');
             } catch (error) {
                 if (error.statusCode === 401) {
                     setCurrentUser(null);
-                    clearAccessToken();
                     localStorage.removeItem('wittingUser');
                     setAuthError(error.message || 'Your session has expired.');
                     navigate('/');
@@ -459,7 +457,6 @@ function App() {
         try {
             setIsSubmitting(true);
             const data = await authAPI.login(loginEmail, loginPassword);
-            setAccessToken(data.token);
             setCurrentUser(data.user);
             setLoginPassword('');
             clearPasswordResetState();
@@ -540,7 +537,6 @@ function App() {
             setLoginPassword('');
             setAuthView('login');
             setCurrentUser(null);
-            clearAccessToken();
             localStorage.removeItem('wittingUser');
             clearPasswordResetState();
             setAuthSuccess(data.message || 'Password reset successful.');
@@ -566,7 +562,6 @@ function App() {
 
     const handleLogout = () => {
         setCurrentUser(null);
-        clearAccessToken();
         setAuthView('login');
         clearAuthFormState();
         setEventActionError('');
