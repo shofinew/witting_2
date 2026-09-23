@@ -116,6 +116,21 @@ export function ProfilePage({
     const memberSinceDate = currentUser.createdAt || currentUser.memberSince;
     const formatEventTimestamp = (value) => (value ? new Date(value).toLocaleString() : null);
     const uniqueIdLabel = getUserUniqueId(currentUser);
+    const requiredProfileFields = [
+        'designation',
+        'achievement',
+        'phone',
+        'country',
+        'dateOfBirth',
+        'gender',
+        'specialistAt',
+        'profession',
+        'chamber',
+    ];
+    const hasValue = (value) => value !== undefined && value !== null && String(value).trim() !== '';
+    const identityCompletion = ['name', 'email'].filter((field) => hasValue(currentUser[field])).length * 10;
+    const additionalCompletion = requiredProfileFields.filter((field) => hasValue(currentUser[field])).length;
+    const profileCompletion = Math.min(100, Math.round(identityCompletion + (additionalCompletion / requiredProfileFields.length) * 80));
 
     return (
         <div className="w-full rounded-3xl border border-indigo-100 bg-white/95 p-4 shadow-2xl backdrop-blur-sm sm:p-6">
@@ -160,6 +175,22 @@ export function ProfilePage({
                             >
                                 {isEditing ? 'Done editing' : 'Edit profile'}
                             </button>
+                        </div>
+
+                        <div className="mt-4 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4" aria-label={`Profile completion: ${profileCompletion}%`}>
+                            <div className="flex items-center justify-between gap-3">
+                                <p className="text-sm font-semibold text-indigo-900">Profile completion</p>
+                                <p className="text-sm font-black text-indigo-700">{profileCompletion}%</p>
+                            </div>
+                            <div className="mt-2 h-3 overflow-hidden rounded-full bg-white" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={profileCompletion}>
+                                <div
+                                    className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 to-indigo-600 transition-all duration-500"
+                                    style={{ width: `${profileCompletion}%` }}
+                                />
+                            </div>
+                            <p className="mt-2 text-xs text-indigo-700">
+                                Name and email start your profile at 20%. Complete the remaining details to reach 100%.
+                            </p>
                         </div>
 
                         <div className="mt-4 grid gap-3 md:grid-cols-2">
