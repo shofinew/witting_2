@@ -263,7 +263,7 @@ export function UserProfileModal({ user, currentUser, onClose, onUserChange, onC
                             />
                         </div>
                         <p className="mt-2 text-[11px] text-indigo-700">
-                            Complete the remaining details to reach 100% for your friend and client satisfaction.
+                            Given user information we can not varifiy , Be carefull !
                         </p>
                     </div>
 
