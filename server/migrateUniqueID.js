@@ -1,35 +1,21 @@
+require('dotenv').config();
+
 const mongoose = require('mongoose');
 const connectDB = require('./src/config/db');
-const User = require('./src/models/User');
+const { migrateUniqueIDs } = require('./src/services/uniqueIDMigration');
 
-async function assignUniqueIDs() {
+const run = async () => {
     await connectDB();
 
     try {
-        // Get all existing uniqueIDs
-        const existingIDs = await User.find({ uniqueID: { $exists: true } }, { uniqueID: 1 }).sort({ uniqueID: 1 });
-        const usedIDs = new Set(existingIDs.map(u => u.uniqueID));
-
-        const usersWithoutID = await User.find({ uniqueID: { $exists: false } }).sort({ createdAt: 1 });
-
-        for (const user of usersWithoutID) {
-            // Find the smallest available ID
-            let id = 1;
-            while (usedIDs.has(id)) {
-                id++;
-            }
-            user.uniqueID = id;
-            usedIDs.add(id);
-            await user.save();
-            console.log(`Assigned uniqueID ${id} to user ${user.email}`);
-        }
-
-        console.log('Migration completed.');
+        const count = await migrateUniqueIDs();
+        console.log('Migration completed. Processed ' + count + ' users.');
     } catch (error) {
         console.error('Migration failed:', error);
+        process.exitCode = 1;
     } finally {
-        mongoose.connection.close();
+        await mongoose.connection.close();
     }
-}
+};
 
-assignUniqueIDs();
+run();

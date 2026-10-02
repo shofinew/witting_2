@@ -2,8 +2,11 @@ const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
     uniqueID: {
-        type: Number,
+        type: String,
         unique: true,
+        uppercase: true,
+        trim: true,
+        match: /^[A-Z]{2}\d{10}$/,
     },
     name: {
         type: String,

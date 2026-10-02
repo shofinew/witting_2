@@ -8,6 +8,7 @@ const eventRoutes = require('./src/routes/event.js');
 const notificationRoutes = require('./src/routes/notification.js');
 const { errorHandler } = require('./src/middleware/errorHandler');
 const { apiRateLimiter } = require('./src/middleware/rateLimit');
+const { migrateUniqueIDs } = require('./src/services/uniqueIDMigration');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -70,6 +71,9 @@ app.use(errorHandler);
 
 // Start server after database connection
 connectDB()
+    .then(() => {
+        return migrateUniqueIDs();
+    })
     .then(() => {
         app.listen(PORT, () => {
             console.log(`Server running on port ${PORT}`);

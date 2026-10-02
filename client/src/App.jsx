@@ -930,7 +930,7 @@ function App() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-fuchsia-200 via-sky-100 to-cyan-100 p-6">
+        <div className="min-h-screen bg-gradient-to-br from-fuchsia-200 via-sky-100 to-cyan-100 p-0">
             <div className="max-w-5xl mx-auto">
                 <Header
                     activePage={activePage}

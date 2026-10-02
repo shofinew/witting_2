@@ -41,7 +41,7 @@ export function AuthPage({
     setAuthSuccess,
 }) {
     return (
-        <div className="min-h-screen bg-gradient-to-br from-fuchsia-200 via-sky-100 to-cyan-100 p-3 sm:p-4">
+        <div className="min-h-screen bg-gradient-to-br from-fuchsia-200 via-sky-100 to-cyan-100 p-0">
             <div className="w-full max-w-sm mx-auto bg-white/95 p-4 sm:p-5 rounded-2xl shadow-xl border border-indigo-100 backdrop-blur-sm">
                 <div className="mb-3 text-center">
                     <h1 className="text-2xl sm:text-3xl font-black text-primary">

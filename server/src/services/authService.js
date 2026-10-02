@@ -6,6 +6,7 @@ const PasswordResetOtp = require('../models/PasswordResetOtp');
 const auditLogService = require('./auditLogService');
 const { RESET_OTP_TTL_MINUTES, MAX_RESET_OTP_ATTEMPTS, generateOtp, hashOtp } = require('../utils/otp');
 const { isValidObjectId } = require('../utils/validators');
+const { getNextUniqueID } = require('../utils/uniqueID');
 
 const buildSafeUser = (user) => ({
     _id: user._id,
@@ -110,13 +111,7 @@ const authService = {
             throw error;
         }
 
-        // Find the next available uniqueID
-        const existingIDs = await User.find({}, { uniqueID: 1 }).sort({ uniqueID: 1 });
-        const usedIDs = existingIDs.map(u => u.uniqueID);
-        let uniqueID = 1;
-        while (usedIDs.includes(uniqueID)) {
-            uniqueID++;
-        }
+        const uniqueID = await getNextUniqueID();
 
         const hashedPassword = await bcrypt.hash(password, 10);
 

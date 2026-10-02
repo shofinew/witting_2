@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
+    "migrate:unique-ids": "node migrateUniqueID.js",
     "migrate:user-roles": "node migrateUserRoles.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
