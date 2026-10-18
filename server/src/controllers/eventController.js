@@ -25,8 +25,6 @@ const formatEventResponse = (event) => {
         date: e.date,
         timeDuration: e.timeDuration,
         serialNo: e.serialNo,
-        remainingSeconds: e.remainingSeconds,
-        timerStartedAt: e.timerStartedAt,
         status: e.status,
         archivedAt: e.archivedAt,
         eventCreatedAt: e.eventCreatedAt,
@@ -39,11 +37,33 @@ const formatPublicEventResponse = (event, viewerUserId = null) => {
     const e = event.toObject ? event.toObject() : event;
     const likedBy = Array.isArray(e.likedBy) ? e.likedBy : [];
     const viewerId = viewerUserId ? String(viewerUserId) : '';
-    const startDate = e.date || e.startDate || null;
+    const formatCalendarDate = (value) => {
+        if (!value) return null;
+        const stringValue = String(value);
+        const datePartMatch = /^(\d{4}-\d{2}-\d{2})/.exec(stringValue);
+        if (datePartMatch) return datePartMatch[1];
+
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return null;
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    };
+
+    const startDate = formatCalendarDate(e.date || e.startDate);
     const startTime = e.time || e.startTime || '';
-    const endDate = e.endDate || e.finishDate || null;
+    let endDate = e.endDate || e.finishDate || null;
     const endTime = e.endTime || e.finishTime || '';
+    const startTimeEnabled = e.startTimeEnabled !== false;
+    const endTimeEnabled = e.endTimeEnabled !== false;
     const duration = e.duration ?? e.timeDuration ?? null;
+
+    // The database stores a disabled end time at the following midnight so
+    // expiration is correct. Present the user's selected inclusive end date.
+    if (!endTimeEnabled && endDate) {
+        const displayEndDate = new Date(endDate);
+        displayEndDate.setDate(displayEndDate.getDate() - 1);
+        endDate = displayEndDate;
+    }
+    endDate = formatCalendarDate(endDate);
 
     return {
         _id: e._id,
@@ -51,14 +71,17 @@ const formatPublicEventResponse = (event, viewerUserId = null) => {
         creator: e.creatorId,
         title: e.title,
         description: e.description,
+        note: e.note || '',
         location: e.location || e.venue || '',
         duration,
         date: startDate,
-        time: startTime,
+        time: startTimeEnabled ? startTime : '',
         startDate,
-        startTime,
+        startTime: startTimeEnabled ? startTime : '',
         endDate,
-        endTime,
+        endTime: endTimeEnabled ? endTime : '',
+        startTimeEnabled,
+        endTimeEnabled,
         likeCount: likedBy.length,
         likedByCurrentUser: viewerId
             ? likedBy.some((userId) => String(userId?._id || userId) === viewerId)
@@ -70,7 +93,7 @@ const formatPublicEventResponse = (event, viewerUserId = null) => {
 
 // Create Event Controller
 const createEvent = asyncHandler(async (req, res) => {
-    const { creator, target, creatorId, targetId, description, message, date, timeDuration } = req.body;
+    const { creator, target, creatorId, targetId, description, message, date, timeDuration, timeDurationEnabled } = req.body;
     const creatorUserId = req.auth.userId;
     const targetUserId = target || targetId;
 
@@ -81,7 +104,8 @@ const createEvent = asyncHandler(async (req, res) => {
             description,
             date,
             timeDuration,
-            DURATION_CONSTRAINTS
+            DURATION_CONSTRAINTS,
+            timeDurationEnabled !== false
         );
 
         if (!validation.valid) {
@@ -131,11 +155,24 @@ const getEventsByStatus = asyncHandler(async (req, res) => {
 });
 
 const createPublicEvent = asyncHandler(async (req, res) => {
-    const { title, description, location, startDate, startTime, endDate, endTime } = req.body;
+    const { title, description, location, startDate, startTime, endDate, endTime, note, startTimeEnabled, endTimeEnabled } = req.body;
     const creatorId = req.auth.userId;
 
     try {
-        const validation = validateCreatePublicEventInput(creatorId, title, description, location, startDate, startTime, endDate, endTime);
+        const normalizedStartTimeEnabled = startTimeEnabled !== false;
+        const normalizedEndTimeEnabled = endTimeEnabled !== false;
+        const validation = validateCreatePublicEventInput(
+            creatorId,
+            title,
+            description,
+            location,
+            startDate,
+            startTime,
+            endDate,
+            endTime,
+            normalizedStartTimeEnabled,
+            normalizedEndTimeEnabled,
+        );
 
         if (!validation.valid) {
             return res.status(400).json({ message: validation.message });
@@ -150,7 +187,10 @@ const createPublicEvent = asyncHandler(async (req, res) => {
             startTime,
             endDate,
             endTime,
-            validation.durationMinutes
+            validation.durationMinutes,
+            note,
+            normalizedStartTimeEnabled,
+            normalizedEndTimeEnabled
         );
         return res.status(201).json({
             message: 'Public event created successfully.',
@@ -169,7 +209,11 @@ const getPublicEvents = asyncHandler(async (req, res) => {
 
     try {
         const events = await eventService.getPublicEvents(creatorId, viewerUserId);
-        return res.status(200).json({ events: events.map((event) => formatPublicEventResponse(event, viewerUserId)) });
+        const total = creatorId ? await eventService.countPublicEvents(creatorId) : events.length;
+        return res.status(200).json({
+            total,
+            events: events.map((event) => formatPublicEventResponse(event, viewerUserId)),
+        });
     } catch (error) {
         const statusCode = error.statusCode || 500;
         const message = error.message || 'Server error while fetching public events.';
@@ -295,23 +339,6 @@ const archiveEvent = asyncHandler(async (req, res) => {
     }
 });
 
-const startEventTimer = asyncHandler(async (req, res) => {
-    const { eventId } = req.params;
-    const actorUserId = req.auth.userId;
-
-    try {
-    const event = await eventService.startEventTimer(eventId, req.auth.userId);
-        return res.status(200).json({
-            message: 'Event timer started successfully.',
-            event: formatEventResponse(event),
-        });
-    } catch (error) {
-        const statusCode = error.statusCode || 500;
-        const message = error.message || 'Server error while starting event timer.';
-        return res.status(statusCode).json({ message });
-    }
-});
-
 // Delete Event Controller
 const deleteEvent = asyncHandler(async (req, res) => {
     const { eventId } = req.params;
@@ -336,6 +363,5 @@ module.exports = {
     advanceEvent,
     publishEvent,
     archiveEvent,
-    startEventTimer,
     deleteEvent,
 };

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getCountryLabel } from '../utils/countries';
 import { canManageUsers, getUserUniqueId } from '../utils/user';
-import { authAPI, eventAPI, userAPI } from '../api';
+import { authAPI, eventAPI, myNoticeAPI, userAPI } from '../api';
 
 const DETAIL_FIELDS = [
     { label: 'Designation', key: 'designation' },
@@ -24,10 +24,24 @@ const PROFILE_COMPLETION_FIELDS = [
     'chamber',
 ];
 
+const formatAvailabilityDate = (value) => {
+    if (!value) return null;
+
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+        ? null
+        : date.toLocaleDateString([], { dateStyle: 'medium' });
+};
+
 export function UserProfileModal({ user, currentUser, onClose, onUserChange, onCurrentUserUpdate }) {
+    const [activeSection, setActiveSection] = useState('profile');
+    const [userNotices, setUserNotices] = useState([]);
+    const [isNoticesLoading, setIsNoticesLoading] = useState(false);
+    const [noticesError, setNoticesError] = useState('');
     const [followError, setFollowError] = useState('');
     const [isFollowSubmitting, setIsFollowSubmitting] = useState(false);
     const [isBlockSubmitting, setIsBlockSubmitting] = useState(false);
+    const [isBlockConfirmOpen, setIsBlockConfirmOpen] = useState(false);
     const [blockMessage, setBlockMessage] = useState('');
     const [viewerRole, setViewerRole] = useState(currentUser?.role || '');
     const [activeEventView, setActiveEventView] = useState(null);
@@ -58,6 +72,11 @@ export function UserProfileModal({ user, currentUser, onClose, onUserChange, onC
         .slice(0, 2)
         .map((part) => part[0]?.toUpperCase() || '')
         .join('');
+    const availabilityType = user.availabilityType || 'everyday';
+    const savedAvailabilityDates = Array.isArray(user.availableDates) && user.availableDates.length > 0
+        ? user.availableDates
+        : (user.availableDate ? [user.availableDate] : []);
+    const availabilityDates = [...new Set(savedAvailabilityDates.map(formatAvailabilityDate).filter(Boolean))];
 
     useEffect(() => {
         let isMounted = true;
@@ -77,6 +96,27 @@ export function UserProfileModal({ user, currentUser, onClose, onUserChange, onC
         loadViewerRole();
         return () => { isMounted = false; };
     }, [currentUser?._id, currentUser?.role]);
+
+    useEffect(() => {
+        if (activeSection !== 'notice' || !user?._id) return undefined;
+
+        let isMounted = true;
+        const loadUserNotices = async () => {
+            try {
+                setIsNoticesLoading(true);
+                setNoticesError('');
+                const response = await myNoticeAPI.getByUser(user._id);
+                if (isMounted) setUserNotices(Array.isArray(response.notices) ? response.notices : []);
+            } catch (error) {
+                if (isMounted) setNoticesError(error.message || 'Failed to load notices.');
+            } finally {
+                if (isMounted) setIsNoticesLoading(false);
+            }
+        };
+
+        loadUserNotices();
+        return () => { isMounted = false; };
+    }, [activeSection, user?._id]);
 
     const loadProfileEvents = async (view) => {
         if (!canViewEventHistory || !user?._id) return;
@@ -139,14 +179,20 @@ export function UserProfileModal({ user, currentUser, onClose, onUserChange, onC
         }
     };
 
-    const handleBlockClick = async () => {
+    const handleBlockClick = async (confirmed = false) => {
         if (!currentUser?._id || currentUser._id === user._id) {
+            return;
+        }
+
+        if (!isBlocked && !confirmed) {
+            setIsBlockConfirmOpen(true);
             return;
         }
 
         try {
             setFollowError('');
             setBlockMessage('');
+            setIsBlockConfirmOpen(false);
             setIsBlockSubmitting(true);
             const response = await authAPI.toggleBlock(currentUser._id, user._id);
             onUserChange({ ...user, isBlockedByViewer: response.isBlocked, isBlockedByUser: user.isBlockedByUser });
@@ -161,48 +207,48 @@ export function UserProfileModal({ user, currentUser, onClose, onUserChange, onC
 
     return (
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-3 py-4 backdrop-blur-sm sm:px-5"
+            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/55 px-3 py-4 backdrop-blur-sm sm:px-5 sm:py-6"
             role="dialog"
             aria-modal="true"
             aria-labelledby="user-profile-modal-title"
             onClick={onClose}
         >
             <div
-                className="flex max-h-[calc(100dvh-1rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-white/70 bg-slate-50 shadow-2xl sm:max-h-[calc(100dvh-1.5rem)]"
+                className="mt-0 flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-white/70 bg-slate-50 shadow-2xl sm:max-h-[calc(100dvh-3rem)]"
                 onClick={(event) => event.stopPropagation()}
             >
-                <div className="border-b border-slate-200 bg-white px-2.5 py-2.5 sm:px-3">
+                <div className="relative border-b border-indigo-900/20 bg-gradient-to-br from-[#161080] via-indigo-700 to-[#0084ff] px-3 py-3 text-white sm:px-4">
                     <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="flex min-w-0 items-start gap-2.5 sm:gap-3">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-base font-black text-white shadow-md shadow-indigo-200">
+                        <div className="flex min-w-0 items-start gap-2.5 pr-16 sm:gap-3 lg:pr-0">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/30 bg-white/20 text-base font-black text-white shadow-md backdrop-blur-sm">
                                 {initials || 'U'}
                             </div>
                             <div className="min-w-0">
-                                <p className="text-xs font-bold uppercase tracking-wide text-indigo-500">User Profile</p>
-                                <h3 id="user-profile-modal-title" className="mt-0.5 break-words text-xl font-black leading-tight text-slate-950 sm:text-2xl">
+                                <p className="text-xs font-bold uppercase tracking-[0.16em] text-indigo-100">User Profile</p>
+                                <h3 id="user-profile-modal-title" className="mt-0.5 break-words text-xl font-black leading-tight text-white sm:text-2xl">
                                     {user.name}
                                 </h3>
                                 <div className="mt-1.5 flex flex-wrap gap-1">
-                                    <span className="rounded-full border border-indigo-100 bg-indigo-50 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-700">
+                                    <span className="rounded-full border border-white/20 bg-white/15 px-2.5 py-0.5 text-[11px] font-semibold text-white">
                                         ID: {uniqueIdLabel}
                                     </span>
-                                    <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+                                    <span className="rounded-full border border-white/20 bg-white/15 px-2.5 py-0.5 text-[11px] font-semibold text-white">
                                         {user.profession || 'Profession not set'}
                                     </span>
-                                    <span className="rounded-full border border-sky-100 bg-sky-50 px-2.5 py-0.5 text-[11px] font-semibold text-sky-700">
+                                    <span className="rounded-full border border-white/20 bg-white/15 px-2.5 py-0.5 text-[11px] font-semibold text-white">
                                         {getCountryLabel(user.country)}
                                     </span>
                                 </div>
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-1 sm:flex sm:flex-wrap sm:justify-end">
+                        <div className="flex flex-wrap justify-end gap-1 self-end">
                             {canFollow && (
                                 <>
                                     <button
                                         type="button"
                                         onClick={handleToggleFollow}
                                         disabled={isFollowSubmitting}
-                                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${user.isFollowing
+                                        className={`rounded-lg px-3 py-1 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${user.isFollowing
                                             ? 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
                                             : 'bg-indigo-600 text-white hover:bg-indigo-700'
                                             }`}
@@ -211,29 +257,83 @@ export function UserProfileModal({ user, currentUser, onClose, onUserChange, onC
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={handleBlockClick}
+                                        onClick={() => handleBlockClick()}
                                         disabled={isBlockSubmitting}
-                                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${isBlocked
+                                        className={`rounded-lg px-3 py-1 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${isBlocked
                                             ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                            : 'bg-amber-100 text-amber-900 ring-1 ring-amber-200 hover:bg-amber-200'
+                                            : 'bg-red-50 text-red-600 ring-1 ring-red-200 hover:bg-red-100'
                                             }`}
                                     >
                                         {isBlockSubmitting ? 'Updating...' : isBlocked ? 'Unblock' : 'Block'}
                                     </button>
                                 </>
                             )}
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="absolute right-3 top-3 rounded-lg border border-white/30 bg-white/10 px-3 py-1 text-xs font-semibold text-white transition hover:border-red-500 hover:bg-red-600"
+                    >
+                        Close
+                    </button>
+                </div>
+
+                <div className="flex gap-2 border-t border-slate-100 bg-slate-50 px-2.5 py-2.5 sm:px-3" role="tablist" aria-label="User profile sections">
+                    <button
+                        type="button"
+                        onClick={() => setActiveSection('profile')}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold shadow-sm transition ${activeSection === 'profile' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-100'}`}
+                    >
+                        Profile
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveSection('notice')}
+                        className={`rounded-lg px-3 py-1.5 text-xs font-semibold shadow-sm transition ${activeSection === 'notice' ? 'bg-indigo-600 text-white' : 'bg-white text-slate-700 hover:bg-slate-100'}`}
+                    >
+                        Notice
+                    </button>
+                </div>
+
+                {isBlockConfirmOpen && !isBlocked && (
+                    <div className="border-b border-red-200 bg-red-50 px-3 py-3 sm:px-4" role="alertdialog" aria-label="Confirm blocking user">
+                        <p className="text-sm font-bold text-red-900">Block {user.name}?</p>
+                        <p className="mt-1 text-xs text-red-700">This user will be blocked from interacting with you.</p>
+                        <div className="mt-3 flex justify-end gap-2">
                             <button
                                 type="button"
-                                onClick={onClose}
+                                onClick={() => setIsBlockConfirmOpen(false)}
                                 className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
                             >
-                                Close
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleBlockClick(true)}
+                                disabled={isBlockSubmitting}
+                                className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                Yes, Block
                             </button>
                         </div>
                     </div>
-                </div>
+                )}
 
                 <div className="flex-1 overflow-y-auto p-2.5 sm:p-3">
+                    {activeSection === 'notice' ? (
+                        <div className="rounded-xl border border-indigo-100 bg-white p-4 shadow-sm">
+                            <div className="mb-4">
+                                <p className="text-xs font-bold uppercase tracking-[0.16em] text-indigo-600">Notice</p>
+                                <h4 className="mt-1 text-lg font-black text-slate-900">{user.name}&apos;s notices</h4>
+                                <p className="mt-1 text-xs text-slate-500">Only notice content is shown here.</p>
+                            </div>
+                            {isNoticesLoading && <p className="text-sm text-indigo-700">Loading notices...</p>}
+                            {!isNoticesLoading && noticesError && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{noticesError}</p>}
+                            {!isNoticesLoading && !noticesError && userNotices.length === 0 && <p className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-5 text-center text-sm text-slate-500">No notices published.</p>}
+                            {!isNoticesLoading && !noticesError && userNotices.length > 0 && <div className="space-y-3">{userNotices.map((notice) => <article key={notice._id} className="rounded-xl border border-slate-200 bg-slate-50 p-3"><p className="whitespace-pre-wrap text-sm leading-6 text-slate-800">{notice.content}</p><p className="mt-2 text-[11px] text-slate-500">{notice.createdAt ? new Date(notice.createdAt).toLocaleString() : 'Saved notice'}</p></article>)}</div>}
+                        </div>
+                    ) : (
                     <div className="space-y-2.5">
                     {followError && (
                         <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-900">
@@ -265,6 +365,33 @@ export function UserProfileModal({ user, currentUser, onClose, onUserChange, onC
                         <p className="mt-2 text-[11px] text-indigo-700">
                             Given user information we can not varifiy , Be carefull !
                         </p>
+                    </div>
+
+                    <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-3" aria-label="Available Date">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                                <p className="text-sm font-bold text-indigo-900">Available Date</p>
+                                <p className="mt-1 text-[11px] text-indigo-700">
+                                    {availabilityType === 'everyday' ? 'Available every day.' : 'Custom availability dates'}
+                                </p>
+                            </div>
+                            <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-bold capitalize text-indigo-700">
+                                {availabilityType}
+                            </span>
+                        </div>
+                        {availabilityType === 'custom' && (
+                            availabilityDates.length > 0 ? (
+                                <div className="mt-2 flex flex-wrap gap-2" aria-label="Available dates">
+                                    {availabilityDates.map((dateLabel) => (
+                                        <span key={dateLabel} className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-indigo-800">
+                                            {dateLabel}
+                                        </span>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="mt-2 text-xs text-slate-600">No custom dates selected.</p>
+                            )
+                        )}
                     </div>
 
                     {canViewEventHistory && (
@@ -353,6 +480,14 @@ export function UserProfileModal({ user, currentUser, onClose, onUserChange, onC
                                             </div>
                                             <p className="mt-1 text-xs font-semibold text-slate-800">{String(log.action || '').replaceAll('_', ' ')}</p>
                                             <p className="mt-0.5 text-[10px] text-slate-600">{log.details || 'No details available.'}</p>
+                                            <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] text-slate-500">
+                                                <span className="rounded-full bg-white px-2 py-0.5 font-medium">
+                                                    Browser: {log.browserName || 'Not available'}
+                                                </span>
+                                                <span className="rounded-full bg-white px-2 py-0.5 font-medium">
+                                                    OS: {log.operatingSystem || 'Not available'}
+                                                </span>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -437,6 +572,7 @@ export function UserProfileModal({ user, currentUser, onClose, onUserChange, onC
                         </div>
                     </div>
                     </div>
+                    )}
                 </div>
             </div>
         </div>

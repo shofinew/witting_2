@@ -41,8 +41,8 @@ export function AuthPage({
     setAuthSuccess,
 }) {
     return (
-        <div className="min-h-screen bg-gradient-to-br from-fuchsia-200 via-sky-100 to-cyan-100 p-0">
-            <div className="w-full max-w-sm mx-auto bg-white/95 p-4 sm:p-5 rounded-2xl shadow-xl border border-indigo-100 backdrop-blur-sm">
+        <div className="min-h-screen bg-gradient-to-br from-fuchsia-200 via-sky-100 to-cyan-100 px-3 py-4 sm:px-4 sm:py-8">
+            <div className="mx-auto w-full max-w-sm rounded-2xl border border-indigo-100 bg-white/95 p-4 shadow-xl backdrop-blur-sm sm:p-5">
                 <div className="mb-3 text-center">
                     <h1 className="text-2xl sm:text-3xl font-black text-primary">
                         Welcome to Witting

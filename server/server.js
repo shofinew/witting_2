@@ -6,6 +6,7 @@ const connectDB = require('./src/config/db.js');
 const authRoutes = require('./src/routes/auth.js');
 const eventRoutes = require('./src/routes/event.js');
 const notificationRoutes = require('./src/routes/notification.js');
+const myNoticeRoutes = require('./src/routes/myNotice.js');
 const { errorHandler } = require('./src/middleware/errorHandler');
 const { apiRateLimiter } = require('./src/middleware/rateLimit');
 const { migrateUniqueIDs } = require('./src/services/uniqueIDMigration');
@@ -65,6 +66,7 @@ app.use('/api', apiRateLimiter);
 app.use('/api', authRoutes);
 app.use('/api', eventRoutes);
 app.use('/api', notificationRoutes);
+app.use('/api', myNoticeRoutes);
 
 // Error Handler Middleware (must be last)
 app.use(errorHandler);

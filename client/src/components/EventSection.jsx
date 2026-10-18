@@ -19,7 +19,6 @@ export function EventSection({
     onEdit,
     onDelete,
     onArchive,
-    onStart,
     headerContent = null,
     hideStartAndArchive = false,
     hideEditButton = false,
@@ -77,7 +76,6 @@ export function EventSection({
                             onEdit={onEdit}
                             onDelete={onDelete}
                             onArchive={onArchive}
-                            onStart={onStart}
                             hideStartAndArchive={hideStartAndArchive}
                             hideEditButton={hideEditButton}
                             hideSerial={hideSerial}

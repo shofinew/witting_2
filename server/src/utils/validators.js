@@ -41,13 +41,24 @@ const validateLoginInput = (email, password) => {
     return { valid: true };
 };
 
-const validateCreateEventInput = (creator, target, description, date, timeDuration, constraints) => {
-    if (!creator || !target || !description || !date || !timeDuration) {
-        return { valid: false, message: 'creator, target, description, date, and timeDuration are required.' };
+const validateCreateEventInput = (creator, target, description, date, timeDuration, constraints, timeDurationEnabled = true) => {
+    if (!creator || !target || !description || !date || (timeDurationEnabled && !timeDuration)) {
+        return { valid: false, message: timeDurationEnabled
+            ? 'creator, target, description, date, and timeDuration are required.'
+            : 'creator, target, description, and date are required.' };
     }
 
     if (!isValidObjectId(creator) || !isValidObjectId(target)) {
         return { valid: false, message: 'Invalid creator or target.' };
+    }
+
+    if (!timeDurationEnabled) {
+        const eventDateValidation = validateEventDate(date);
+        if (!eventDateValidation.valid) {
+            return eventDateValidation;
+        }
+
+        return { valid: true, durationNumber: 0 };
     }
 
     const durationNumber = Number(timeDuration);
@@ -67,12 +78,12 @@ const validateCreateEventInput = (creator, target, description, date, timeDurati
 };
 
 const validateUpdateEventInput = (description, date, timeDuration, constraints) => {
-    if (!description || !date || !timeDuration) {
+    if (!description || !date || timeDuration == null || timeDuration === '') {
         return { valid: false, message: 'description, date, and timeDuration are required.' };
     }
 
     const durationNumber = Number(timeDuration);
-    if (!Number.isInteger(durationNumber) || durationNumber < constraints.MIN || durationNumber > constraints.MAX) {
+    if (!Number.isInteger(durationNumber) || durationNumber < 0 || durationNumber > constraints.MAX) {
         return {
             valid: false,
             message: `timeDuration must be a whole number between ${constraints.MIN} and ${constraints.MAX}.`,
@@ -87,20 +98,31 @@ const validateUpdateEventInput = (description, date, timeDuration, constraints) 
     return { valid: true, durationNumber };
 };
 
-const validateCreatePublicEventInput = (creatorId, title, description, location, startDate, startTime, endDate, endTime) => {
-    if (!creatorId || !title || !description || !location || !startDate || !startTime || !endDate || !endTime) {
-        return { valid: false, message: 'creatorId, title, description, location, startDate, startTime, endDate, and endTime are required.' };
+const validateCreatePublicEventInput = (
+    creatorId,
+    title,
+    description,
+    location,
+    startDate,
+    startTime,
+    endDate,
+    endTime,
+    startTimeEnabled = true,
+    endTimeEnabled = true,
+) => {
+    if (!creatorId || !title || !description || !location || !startDate || !endDate) {
+        return { valid: false, message: 'creatorId, title, description, location, startDate, and endDate are required.' };
     }
 
     if (!isValidObjectId(creatorId)) {
         return { valid: false, message: 'Invalid creator ID.' };
     }
 
-    if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(String(startTime).trim())) {
+    if (startTimeEnabled && !/^([01]\d|2[0-3]):([0-5]\d)$/.test(String(startTime).trim())) {
         return { valid: false, message: 'Start time must be in HH:MM format.' };
     }
 
-    if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(String(endTime).trim())) {
+    if (endTimeEnabled && !/^([01]\d|2[0-3]):([0-5]\d)$/.test(String(endTime).trim())) {
         return { valid: false, message: 'End time must be in HH:MM format.' };
     }
 
@@ -114,8 +136,20 @@ const validateCreatePublicEventInput = (creatorId, title, description, location,
         return endValidation;
     }
 
-    const startDateTime = new Date(`${startDate}T${startTime}`);
-    const endDateTime = new Date(`${endDate}T${endTime}`);
+    const startDateOnly = parseDateOnly(startDate);
+    const endDateOnly = parseDateOnly(endDate);
+    if (endDateOnly < startDateOnly) {
+        return { valid: false, message: 'End date must be the same as or after the start date.' };
+    }
+
+    const startDateTime = new Date(`${startDate}T${startTimeEnabled ? startTime : '00:00'}`);
+    const endDateTime = new Date(`${endDate}T${endTimeEnabled ? endTime : '00:00'}`);
+
+    // With no end time, the selected end date is inclusive. Store/measure
+    // through the following midnight so a same-day event lasts 24 hours.
+    if (!endTimeEnabled) {
+        endDateTime.setDate(endDateTime.getDate() + 1);
+    }
 
     if (Number.isNaN(startDateTime.getTime()) || Number.isNaN(endDateTime.getTime())) {
         return { valid: false, message: 'Invalid start or end date/time.' };
@@ -302,4 +336,5 @@ module.exports = {
     validateUpdateEventInput,
     validateDateOfBirth,
     validateEventDate,
+    parseDateOnly,
 };

@@ -8,11 +8,11 @@ const { RESET_OTP_TTL_MINUTES, MAX_RESET_OTP_ATTEMPTS, generateOtp, hashOtp } = 
 const { isValidObjectId } = require('../utils/validators');
 const { getNextUniqueID } = require('../utils/uniqueID');
 
-const buildSafeUser = (user) => ({
+const buildSafeUser = (user, includeEmail = false) => ({
     _id: user._id,
     uniqueID: user.uniqueID,
     name: user.name,
-    email: user.email,
+    ...(includeEmail ? { email: user.email } : {}),
     // Legacy documents may not have role until the role migration runs.
     role: user.role || 'user',
     isPaused: Boolean(user.isPaused),
@@ -20,10 +20,14 @@ const buildSafeUser = (user) => ({
     phone: user.phone,
     country: user.country,
     dateOfBirth: user.dateOfBirth,
+    availableDate: user.availableDate,
+    availableDates: user.availableDates || [],
+    availabilityType: user.availabilityType || 'everyday',
     gender: user.gender,
     specialistAt: user.specialistAt,
     profession: user.profession,
     chamber: user.chamber,
+    timezone: user.timezone || 'Asia/Dhaka',
     designation: user.designation,
     achievement: user.achievement,
     createdAt: user.createdAt,
@@ -36,9 +40,12 @@ const enrichUsersWithFollowData = async (users, viewerUserId = null) => {
         return [];
     }
 
-    const normalizedUsers = users.map((user) => buildSafeUser(user));
-    const userIds = normalizedUsers.map((user) => user._id);
     const normalizedViewerUserId = isValidObjectId(viewerUserId) ? viewerUserId : null;
+    const normalizedUsers = users.map((user) => buildSafeUser(
+        user,
+        normalizedViewerUserId && String(user._id) === String(normalizedViewerUserId)
+    ));
+    const userIds = normalizedUsers.map((user) => user._id);
 
     const [followerCounts, followeeCounts, viewerFollows, blockedByViewer, viewerBlockedUsers] = await Promise.all([
         Follower.aggregate([
@@ -396,17 +403,40 @@ const authService = {
 
         return blockedEntries
             .filter((entry) => entry.blockedUser)
-            .map((entry) => ({
-                _id: entry._id,
-                blockedAt: entry.createdAt,
-                user: buildSafeUser(entry.blockedUser),
-            }));
+            .map((entry) => {
+                const blockedUser = buildSafeUser(entry.blockedUser);
+                delete blockedUser.email;
+
+                return {
+                    _id: entry._id,
+                    blockedAt: entry.createdAt,
+                    user: blockedUser,
+                };
+            });
     },
 
     // Get all users
     getAllUsers: async (viewerUserId = null) => {
         const users = await User.find({}, '-password -sessionVersion -passwordChangedAt').sort({ uniqueID: 1 }).lean();
         return enrichUsersWithFollowData(users, viewerUserId);
+    },
+
+    getFollowees: async (userId) => {
+        const relationships = await Follower.find({ followerUser: userId })
+            .select('followeeUser createdAt')
+            .sort({ createdAt: -1 })
+            .lean();
+        const followeeIds = relationships.map((relationship) => relationship.followeeUser);
+
+        if (followeeIds.length === 0) {
+            return [];
+        }
+
+        const users = await User.find({ _id: { $in: followeeIds } }, '-password -sessionVersion -passwordChangedAt').lean();
+        const enrichedUsers = await enrichUsersWithFollowData(users, userId);
+        const userMap = new Map(enrichedUsers.map((user) => [String(user._id), user]));
+
+        return followeeIds.map((followeeId) => userMap.get(String(followeeId))).filter(Boolean);
     },
 
     setUserPaused: async (actorUserId, targetUserId, paused) => {
@@ -458,7 +488,7 @@ const authService = {
     updateProfile: async (userId, updates) => {
         const { validateDateOfBirth } = require('../utils/validators');
         
-        const allowedFields = ['phone', 'country', 'dateOfBirth', 'gender', 'specialistAt', 'profession', 'chamber', 'designation', 'achievement'];
+        const allowedFields = ['phone', 'country', 'dateOfBirth', 'availableDate', 'availableDates', 'availabilityType', 'gender', 'specialistAt', 'profession', 'chamber', 'timezone', 'designation', 'achievement'];
         const filteredUpdates = {};
 
         for (const field of allowedFields) {

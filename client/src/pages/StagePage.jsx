@@ -30,7 +30,6 @@ export function StagePage({
     onEdit,
     onDelete,
     onArchive,
-    onStart,
 }) {
     const [activeTab, setActiveTab] = useState('coming');
 
@@ -70,7 +69,6 @@ export function StagePage({
             onEdit={onEdit}
             onDelete={onDelete}
             onArchive={onArchive}
-            onStart={onStart}
             hideEditButton={
                 (stage === 'stage1' && activeTab === 'going')
                 || (stage === 'stage2' && activeTab === 'coming')

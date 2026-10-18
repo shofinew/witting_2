@@ -1,7 +1,70 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { authAPI } from '../api';
 import { getCountryLabel } from '../utils/countries';
 import { getUserUniqueId } from '../utils/user';
+
+const getLocalDateKey = (value) => {
+    if (!value) {
+        return '';
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+
+    return [
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, '0'),
+        String(date.getDate()).padStart(2, '0'),
+    ].join('-');
+};
+
+const getArchiveFilterRange = (filter) => {
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+    if (filter.type === 'today') {
+        return [todayStart, todayStart];
+    }
+
+    if (filter.type === 'week') {
+        const start = new Date(todayStart);
+        const daysSinceMonday = (start.getDay() + 6) % 7;
+        start.setDate(start.getDate() - daysSinceMonday);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 6);
+        return [start, end];
+    }
+
+    if (filter.type === 'month') {
+        return [
+            new Date(today.getFullYear(), today.getMonth(), 1),
+            new Date(today.getFullYear(), today.getMonth() + 1, 0),
+        ];
+    }
+
+    if (filter.type === 'date' && filter.date) {
+        const selectedDate = new Date(`${filter.date}T00:00:00`);
+        return Number.isNaN(selectedDate.getTime()) ? null : [selectedDate, selectedDate];
+    }
+
+    return null;
+};
+
+const isDateInRange = (value, range) => {
+    if (!value || !range) {
+        return false;
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return false;
+    }
+
+    const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    return dateOnly >= range[0] && dateOnly <= range[1];
+};
 
 export function SettingPage({
     currentUser,
@@ -22,6 +85,42 @@ export function SettingPage({
     const [blockedError, setBlockedError] = useState('');
     const [blockedMessage, setBlockedMessage] = useState('');
     const [updatingBlockedUserId, setUpdatingBlockedUserId] = useState('');
+    const [archiveDateInput, setArchiveDateInput] = useState('');
+    const [archiveFilter, setArchiveFilter] = useState({ type: 'all', date: '' });
+    const [expiredDateInput, setExpiredDateInput] = useState('');
+    const [expiredFilter, setExpiredFilter] = useState({ type: 'all', date: '' });
+
+    const filteredArchivedEvents = useMemo(() => {
+        if (archiveFilter.type === 'all') {
+            return archivedEvents;
+        }
+
+        const range = getArchiveFilterRange(archiveFilter);
+        if (!range) {
+            return archivedEvents;
+        }
+
+        return archivedEvents.filter((event) => (
+            isDateInRange(event.date, range)
+            || isDateInRange(event.archivedAt, range)
+        ));
+    }, [archivedEvents, archiveFilter]);
+    const filteredExpiredEvents = useMemo(() => {
+        if (expiredFilter.type === 'all') {
+            return expiredEvents;
+        }
+
+        const range = getArchiveFilterRange(expiredFilter);
+        if (!range) {
+            return expiredEvents;
+        }
+
+        return expiredEvents.filter((event) => (
+            isDateInRange(event.date, range)
+            || isDateInRange(event.createdAt, range)
+        ));
+    }, [expiredEvents, expiredFilter]);
+    const todayDateKey = getLocalDateKey(new Date());
 
     useEffect(() => {
         if (activeTab !== 'audit' || !currentUser?._id) {
@@ -113,10 +212,10 @@ export function SettingPage({
     };
 
     return (
-        <div className="w-full bg-white/95 p-8 rounded-3xl shadow-2xl border border-indigo-100 backdrop-blur-sm">
+        <div className="w-full rounded-3xl border border-indigo-100 bg-white/95 p-4 shadow-2xl backdrop-blur-sm sm:p-8">
             <div className="mb-6">
                 <p className="text-sm font-semibold text-fuchsia-500">Setting</p>
-                <h2 className="mt-2 text-3xl font-black text-slate-800">Account settings</h2>
+                <h2 className="mt-2 text-2xl font-black text-slate-800 sm:text-3xl">Account settings</h2>
                 <p className="mt-2 text-slate-600">
                     Manage audit history and blocked users for {currentUser?.name || 'your profile'}.
                 </p>
@@ -212,6 +311,14 @@ export function SettingPage({
                                     </div>
                                     <p className="mt-3 text-sm font-semibold text-slate-800">{log.action.replaceAll('_', ' ')}</p>
                                     <p className="mt-1 text-sm text-slate-600">{log.details || 'No details available.'}</p>
+                                    <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-500">
+                                        <span className="rounded-full bg-white px-3 py-1 font-medium">
+                                            Browser: {log.browserName || 'Not available'}
+                                        </span>
+                                        <span className="rounded-full bg-white px-3 py-1 font-medium">
+                                            OS: {log.operatingSystem || 'Not available'}
+                                        </span>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -282,7 +389,6 @@ export function SettingPage({
                                             </div>
 
                                             <div className="flex flex-col items-start gap-2 sm:items-end">
-                                                <p className="text-sm text-slate-500 break-all">{blockedUser.email}</p>
                                                 <button
                                                     type="button"
                                                     onClick={() => handleUnblockUser(blockedUser._id)}
@@ -303,9 +409,63 @@ export function SettingPage({
 
             {activeTab === 'archive' && (
                 <div className="mt-6 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm">
-                    <div className="mb-4">
-                        <h3 className="text-lg font-semibold text-slate-800">Event Archive</h3>
-                        <p className="mt-1 text-sm text-slate-500">Archived events connected to your account appear here.</p>
+                    <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <h3 className="text-lg font-semibold text-slate-800">Event Archive</h3>
+                            <p className="mt-1 text-sm text-slate-500">Find events by date.</p>
+                        </div>
+                        <div className="flex min-w-0 flex-1 flex-nowrap items-end justify-start gap-1 overflow-x-auto pb-1 [scrollbar-width:thin] sm:ml-4 sm:justify-end">
+                            {[
+                                ['today', 'Today'],
+                                ['week', 'This week'],
+                                ['month', 'This month'],
+                            ].map(([filterType, label]) => (
+                                <button
+                                    key={filterType}
+                                    type="button"
+                                    onClick={() => setArchiveFilter({ type: filterType, date: '' })}
+                                    className={`shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold transition ${archiveFilter.type === filterType
+                                        ? 'bg-indigo-600 text-white shadow-sm'
+                                        : 'border border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+                                        }`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                            <label className="shrink-0 text-xs font-semibold text-slate-600">
+                                <span className="mb-1 block text-[10px] uppercase tracking-wide text-slate-500">Date</span>
+                                <input
+                                    type="date"
+                                    value={archiveDateInput}
+                                    max={todayDateKey}
+                                    onChange={(event) => {
+                                        const selectedDate = event.target.value;
+                                        setArchiveDateInput(selectedDate && selectedDate > todayDateKey ? '' : selectedDate);
+                                    }}
+                                    className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-700 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                                    aria-label="Select archive search date"
+                                />
+                            </label>
+                            <button
+                                type="button"
+                                disabled={!archiveDateInput}
+                                onClick={() => setArchiveFilter({ type: 'date', date: archiveDateInput })}
+                                className="shrink-0 rounded-lg bg-indigo-600 px-2 py-1 text-[11px] font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Search
+                            </button>
+                            <button
+                                type="button"
+                                disabled={archiveFilter.type === 'all' && !archiveDateInput}
+                                onClick={() => {
+                                    setArchiveFilter({ type: 'all', date: '' });
+                                    setArchiveDateInput('');
+                                }}
+                                className="shrink-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Clear
+                            </button>
+                        </div>
                     </div>
 
                     {archiveLoading && (
@@ -326,9 +486,15 @@ export function SettingPage({
                         </div>
                     )}
 
-                    {!archiveLoading && !archiveError && archivedEvents.length > 0 && (
+                    {!archiveLoading && !archiveError && archivedEvents.length > 0 && filteredArchivedEvents.length === 0 && (
+                        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                            No archived events match this filter.
+                        </div>
+                    )}
+
+                    {!archiveLoading && !archiveError && filteredArchivedEvents.length > 0 && (
                         <div className="space-y-4">
-                            {archivedEvents.map((event) => {
+                            {filteredArchivedEvents.map((event) => {
                                 const createdLabel = formatEventTimestamp(event.eventCreatedAt || event.createdAt);
                                 const archivedLabel = formatEventTimestamp(event.archivedAt);
 
@@ -348,11 +514,6 @@ export function SettingPage({
                                             <div className="mt-3 rounded-xl border border-indigo-100 bg-white p-3 text-sm text-slate-700">
                                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                                     <p className="text-xs font-bold text-indigo-500">Message</p>
-                                                    {event.messageAuthor?.name && (
-                                                        <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
-                                                            By {event.messageAuthor.name}
-                                                        </span>
-                                                    )}
                                                 </div>
                                                 <p className="mt-1 whitespace-pre-wrap font-medium">{event.message}</p>
                                             </div>
@@ -373,9 +534,63 @@ export function SettingPage({
 
             {activeTab === 'expired' && (
                 <div className="mt-6 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm">
-                    <div className="mb-4">
-                        <h3 className="text-lg font-semibold text-slate-800">Expired Events</h3>
-                        <p className="mt-1 text-sm text-slate-500">Events whose timers have finished appear here.</p>
+                    <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <h3 className="text-lg font-semibold text-slate-800">Expired Events</h3>
+                            <p className="mt-1 text-sm text-slate-500">Find events by date.</p>
+                        </div>
+                        <div className="flex min-w-0 flex-1 flex-nowrap items-end justify-start gap-1 overflow-x-auto pb-1 [scrollbar-width:thin] sm:ml-4 sm:justify-end">
+                            {[
+                                ['today', 'Today'],
+                                ['week', 'This week'],
+                                ['month', 'This month'],
+                            ].map(([filterType, label]) => (
+                                <button
+                                    key={filterType}
+                                    type="button"
+                                    onClick={() => setExpiredFilter({ type: filterType, date: '' })}
+                                    className={`shrink-0 rounded-lg px-2 py-1 text-[11px] font-semibold transition ${expiredFilter.type === filterType
+                                        ? 'bg-indigo-600 text-white shadow-sm'
+                                        : 'border border-slate-300 bg-white text-slate-600 hover:bg-slate-50'
+                                        }`}
+                                >
+                                    {label}
+                                </button>
+                            ))}
+                            <label className="shrink-0 text-xs font-semibold text-slate-600">
+                                <span className="mb-1 block text-[10px] uppercase tracking-wide text-slate-500">Date</span>
+                                <input
+                                    type="date"
+                                    value={expiredDateInput}
+                                    max={todayDateKey}
+                                    onChange={(event) => {
+                                        const selectedDate = event.target.value;
+                                        setExpiredDateInput(selectedDate && selectedDate > todayDateKey ? '' : selectedDate);
+                                    }}
+                                    className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-700 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                                    aria-label="Select expired event search date"
+                                />
+                            </label>
+                            <button
+                                type="button"
+                                disabled={!expiredDateInput}
+                                onClick={() => setExpiredFilter({ type: 'date', date: expiredDateInput })}
+                                className="shrink-0 rounded-lg bg-indigo-600 px-2 py-1 text-[11px] font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Search
+                            </button>
+                            <button
+                                type="button"
+                                disabled={expiredFilter.type === 'all' && !expiredDateInput}
+                                onClick={() => {
+                                    setExpiredFilter({ type: 'all', date: '' });
+                                    setExpiredDateInput('');
+                                }}
+                                className="shrink-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Clear
+                            </button>
+                        </div>
                     </div>
 
                     {expiredLoading && (
@@ -396,9 +611,15 @@ export function SettingPage({
                         </div>
                     )}
 
-                    {!expiredLoading && !expiredError && expiredEvents.length > 0 && (
+                    {!expiredLoading && !expiredError && expiredEvents.length > 0 && filteredExpiredEvents.length === 0 && (
+                        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                            No expired events match this filter.
+                        </div>
+                    )}
+
+                    {!expiredLoading && !expiredError && filteredExpiredEvents.length > 0 && (
                         <div className="space-y-4">
-                            {expiredEvents.map((event) => {
+                            {filteredExpiredEvents.map((event) => {
                                 const createdLabel = formatEventTimestamp(event.createdAt);
                                 const expiredLabel = formatEventTimestamp(event.date);
 
@@ -418,11 +639,6 @@ export function SettingPage({
                                             <div className="mt-3 rounded-xl border border-indigo-100 bg-white p-3 text-sm text-slate-700">
                                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                                     <p className="text-xs font-bold text-indigo-500">Message</p>
-                                                    {event.messageAuthor?.name && (
-                                                        <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
-                                                            By {event.messageAuthor.name}
-                                                        </span>
-                                                    )}
                                                 </div>
                                                 <p className="mt-1 whitespace-pre-wrap font-medium">{event.message}</p>
                                             </div>

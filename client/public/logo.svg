@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Witting logo</title>
+  <desc id="desc">A white W monogram inside an indigo rounded square</desc>
+  <rect width="128" height="128" rx="32" fill="#161080"/>
+  <path d="M27 33h16l9 39 10-27h4l10 27 9-39h16L89 95H75L64 66 53 95H39L27 33Z" fill="#fff"/>
+</svg>

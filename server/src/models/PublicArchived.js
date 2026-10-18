@@ -22,6 +22,11 @@ const publicArchivedSchema = new mongoose.Schema(
             trim: true,
             required: true,
         },
+        note: {
+            type: String,
+            trim: true,
+            default: '',
+        },
         location: {
             type: String,
             trim: true,
@@ -41,6 +46,10 @@ const publicArchivedSchema = new mongoose.Schema(
             required: true,
             match: /^([01]\d|2[0-3]):([0-5]\d)$/,
         },
+        startTimeEnabled: {
+            type: Boolean,
+            default: true,
+        },
         endDate: {
             type: Date,
             required: true,
@@ -49,6 +58,10 @@ const publicArchivedSchema = new mongoose.Schema(
             type: String,
             required: true,
             match: /^([01]\d|2[0-3]):([0-5]\d)$/,
+        },
+        endTimeEnabled: {
+            type: Boolean,
+            default: true,
         },
         likedBy: [
             {

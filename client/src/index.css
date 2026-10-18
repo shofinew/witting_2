@@ -8,4 +8,13 @@ html {
 body {
     min-height: 100%;
     overflow-y: scroll;
+    overflow-x: hidden;
+    background: #e0f2fe;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
 }

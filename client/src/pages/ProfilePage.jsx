@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { authAPI } from '../api';
 import { COUNTRY_OPTIONS, getCountryLabel } from '../utils/countries';
 import { getUserUniqueId } from '../utils/user';
@@ -34,13 +34,26 @@ const formatDateForInput = (value) => {
     }
 };
 
+const TIMEZONE_OPTIONS = [
+    { value: 'Asia/Dhaka', label: 'Dhaka (GMT+6:00)' },
+    { value: 'Asia/Kolkata', label: 'Kolkata (GMT+5:30)' },
+];
+
+const getTimezoneLabel = (value) => TIMEZONE_OPTIONS.find((option) => option.value === value)?.label || 'Not provided';
+
 export function ProfilePage({
     currentUser,
     onUserUpdate,
     onLogout,
+    events,
+    archivedEvents,
+    now,
+    onRefresh,
+    onViewProfile,
 }) {
+    const location = useLocation();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('profile');
+    const [activeTab, setActiveTab] = useState(() => location.state?.profileTab || 'profile');
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState({
         phone: '',
@@ -50,12 +63,16 @@ export function ProfilePage({
         specialistAt: '',
         profession: '',
         chamber: '',
+        timezone: 'Asia/Dhaka',
         designation: '',
         achievement: '',
     });
     const [isUpdating, setIsUpdating] = useState(false);
     const [updateError, setUpdateError] = useState('');
     const [updateSuccess, setUpdateSuccess] = useState('');
+    const [followees, setFollowees] = useState([]);
+    const [isLoadingFollowees, setIsLoadingFollowees] = useState(false);
+    const [followeesError, setFolloweesError] = useState('');
 
     useEffect(() => {
         if (currentUser) {
@@ -67,11 +84,33 @@ export function ProfilePage({
                 specialistAt: currentUser.specialistAt || '',
                 profession: currentUser.profession || '',
                 chamber: currentUser.chamber || '',
+                timezone: currentUser.timezone || 'Asia/Dhaka',
                 designation: currentUser.designation || '',
                 achievement: currentUser.achievement || '',
             });
         }
     }, [currentUser]);
+
+    useEffect(() => {
+        if (activeTab !== 'followees' || !currentUser?._id) return;
+
+        let isMounted = true;
+        const loadFollowees = async () => {
+            setIsLoadingFollowees(true);
+            setFolloweesError('');
+            try {
+                const response = await authAPI.getFollowees();
+                if (isMounted) setFollowees(Array.isArray(response?.followees) ? response.followees : []);
+            } catch (error) {
+                if (isMounted) setFolloweesError(error instanceof Error ? error.message : 'Failed to load followees.');
+            } finally {
+                if (isMounted) setIsLoadingFollowees(false);
+            }
+        };
+
+        loadFollowees();
+        return () => { isMounted = false; };
+    }, [activeTab, currentUser?._id]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -191,7 +230,15 @@ export function ProfilePage({
             )}
 
             <div className="mt-5">
-                <ProfileTabs currentUser={currentUser} activeTab={activeTab} />
+                <ProfileTabs
+                    currentUser={currentUser}
+                    activeTab={activeTab}
+                    events={[...(events || []), ...(archivedEvents || [])]}
+                    now={now}
+                    onTabChange={setActiveTab}
+                    onRefresh={onRefresh}
+                    onUserUpdate={onUserUpdate}
+                />
 
                 {activeTab === 'profile' && (
                     <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
@@ -242,10 +289,6 @@ export function ProfilePage({
                                         <p className="text-sm font-medium text-slate-500">Unique ID</p>
                                         <p className="mt-1 text-base font-bold text-slate-900" dir="ltr">{uniqueIdLabel}</p>
                                     </div>
-                                    <div>
-                                        <p className="text-sm font-medium text-slate-500">Email</p>
-                                        <p className="mt-1 text-base font-bold text-slate-900 break-all">{currentUser.email}</p>
-                                    </div>
                                 </div>
                             </div>
 
@@ -254,10 +297,16 @@ export function ProfilePage({
                                     <p className="text-sm font-medium text-slate-500">Followers</p>
                                     <p className="mt-2 text-3xl font-black text-slate-900">{currentUser.totalFollowers || 0}</p>
                                 </div>
-                                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab('followees')}
+                                    className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-left transition hover:border-indigo-300 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                    aria-label="View your followees"
+                                >
                                     <p className="text-sm font-medium text-slate-500">Followee</p>
                                     <p className="mt-2 text-3xl font-black text-slate-900">{currentUser.totalFollowee || 0}</p>
-                                </div>
+                                    <p className="mt-1 text-xs font-semibold text-indigo-600">View followees</p>
+                                </button>
                                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:col-span-2">
                                     <p className="text-sm font-medium text-slate-500">Member Since</p>
                                     <p className="mt-2 text-base font-semibold text-slate-800">
@@ -275,7 +324,7 @@ export function ProfilePage({
 
                         <div className="mt-4 grid gap-3 sm:grid-cols-2">
                             <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                                <label className="block text-sm font-medium text-slate-500">Designation</label>
+                                <label className="text-sm font-medium text-slate-500">Designation</label>
                                 {isEditing ? (
                                     <input
                                         type="text"
@@ -286,11 +335,11 @@ export function ProfilePage({
                                         placeholder="Enter your designation"
                                     />
                                 ) : (
-                                    <p className="mt-2 text-sm font-semibold text-slate-900">{currentUser.designation || 'Not provided'}</p>
+                                    <p className="mt-0 ml-2 inline text-sm font-semibold text-slate-900">{currentUser.designation || 'Not provided'}</p>
                                 )}
                             </div>
                             <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                                <label className="block text-sm font-medium text-slate-500">Achievement</label>
+                                <label className="text-sm font-medium text-slate-500">Achievement</label>
                                 {isEditing ? (
                                     <input
                                         type="text"
@@ -301,11 +350,11 @@ export function ProfilePage({
                                         placeholder="Enter your achievement"
                                     />
                                 ) : (
-                                    <p className="mt-2 text-sm font-semibold text-slate-900">{currentUser.achievement || 'Not provided'}</p>
+                                    <p className="mt-0 ml-2 inline text-sm font-semibold text-slate-900">{currentUser.achievement || 'Not provided'}</p>
                                 )}
                             </div>
                             <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                                <label className="block text-sm font-medium text-slate-500">Phone</label>
+                                <label className="text-sm font-medium text-slate-500">Phone</label>
                                 {isEditing ? (
                                     <input
                                         type="tel"
@@ -316,11 +365,11 @@ export function ProfilePage({
                                         placeholder="Enter your phone number"
                                     />
                                 ) : (
-                                    <p className="mt-2 text-sm font-semibold text-slate-900">{currentUser.phone || 'Not provided'}</p>
+                                    <p className="mt-0 ml-2 inline text-sm font-semibold text-slate-900">{currentUser.phone || 'Not provided'}</p>
                                 )}
                             </div>
                             <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                                <label className="block text-sm font-medium text-slate-500">Country</label>
+                                <label className="text-sm font-medium text-slate-500">Country</label>
                                 {isEditing ? (
                                     <select
                                         name="country"
@@ -336,11 +385,11 @@ export function ProfilePage({
                                         ))}
                                     </select>
                                 ) : (
-                                    <p className="mt-2 text-sm font-semibold text-slate-900">{getCountryLabel(currentUser.country)}</p>
+                                    <p className="mt-0 ml-2 inline text-sm font-semibold text-slate-900">{getCountryLabel(currentUser.country)}</p>
                                 )}
                             </div>
                             <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                                <label className="block text-sm font-medium text-slate-500">Date of Birth</label>
+                                <label className="text-sm font-medium text-slate-500">Date of Birth</label>
                                 {isEditing ? (
                                     <input
                                         type="date"
@@ -351,7 +400,7 @@ export function ProfilePage({
                                         className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                                     />
                                 ) : (
-                                    <p className="mt-2 text-sm font-semibold text-slate-900">
+                                    <p className="mt-0 ml-2 inline text-sm font-semibold text-slate-900">
                                         {currentUser.dateOfBirth ? new Date(currentUser.dateOfBirth).toLocaleDateString() : 'Not provided'}
                                     </p>
                                 )}
@@ -360,7 +409,7 @@ export function ProfilePage({
                                 )}
                             </div>
                             <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                                <label className="block text-sm font-medium text-slate-500">Gender</label>
+                                <label className="text-sm font-medium text-slate-500">Gender</label>
                                 {isEditing ? (
                                     <div className="mt-3 flex flex-wrap gap-3">
                                         {[
@@ -382,11 +431,11 @@ export function ProfilePage({
                                         ))}
                                     </div>
                                 ) : (
-                                    <p className="mt-2 text-sm font-semibold capitalize text-slate-900">{currentUser.gender || 'Not provided'}</p>
+                                    <p className="mt-0 ml-2 inline text-sm font-semibold capitalize text-slate-900">{currentUser.gender || 'Not provided'}</p>
                                 )}
                             </div>
                             <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                                <label className="block text-sm font-medium text-slate-500">Specialist At</label>
+                                <label className="text-sm font-medium text-slate-500">Specialist At</label>
                                 {isEditing ? (
                                     <input
                                         type="text"
@@ -397,11 +446,11 @@ export function ProfilePage({
                                         placeholder="Enter your specialization"
                                     />
                                 ) : (
-                                    <p className="mt-2 text-sm font-semibold text-slate-900">{currentUser.specialistAt || 'Not provided'}</p>
+                                    <p className="mt-0 ml-2 inline text-sm font-semibold text-slate-900">{currentUser.specialistAt || 'Not provided'}</p>
                                 )}
                             </div>
                             <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                                <label className="block text-sm font-medium text-slate-500">Profession</label>
+                                <label className="text-sm font-medium text-slate-500">Profession</label>
                                 {isEditing ? (
                                     <input
                                         type="text"
@@ -412,11 +461,11 @@ export function ProfilePage({
                                         placeholder="Enter your profession"
                                     />
                                 ) : (
-                                    <p className="mt-2 text-sm font-semibold text-slate-900">{currentUser.profession || 'Not provided'}</p>
+                                    <p className="mt-0 ml-2 inline text-sm font-semibold text-slate-900">{currentUser.profession || 'Not provided'}</p>
                                 )}
                             </div>
-                            <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:col-span-2">
-                                <label className="block text-sm font-medium text-slate-500">Chamber</label>
+                            <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                                <label className="text-sm font-medium text-slate-500">Chamber</label>
                                 {isEditing ? (
                                     <input
                                         type="text"
@@ -427,7 +476,24 @@ export function ProfilePage({
                                         placeholder="Enter your chamber"
                                     />
                                 ) : (
-                                    <p className="mt-2 text-sm font-semibold text-slate-900">{currentUser.chamber || 'Not provided'}</p>
+                                    <p className="mt-0 ml-2 inline text-sm font-semibold text-slate-900">{currentUser.chamber || 'Not provided'}</p>
+                                )}
+                            </div>
+                            <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                                <label className="text-sm font-medium text-slate-500">Timezone</label>
+                                {isEditing ? (
+                                    <select
+                                        name="timezone"
+                                        value={formData.timezone}
+                                        onChange={handleInputChange}
+                                        className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                    >
+                                        {TIMEZONE_OPTIONS.map((option) => (
+                                            <option key={option.value} value={option.value}>{option.label}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <p className="mt-0 ml-2 inline text-sm font-semibold text-slate-900">{getTimezoneLabel(currentUser.timezone)}</p>
                                 )}
                             </div>
                         </div>
@@ -442,6 +508,55 @@ export function ProfilePage({
                                 >
                                     {isUpdating ? 'Updating...' : 'Save changes'}
                                 </button>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'followees' && (
+                    <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <p className="text-sm font-semibold text-fuchsia-500">Followees</p>
+                                <p className="mt-1 text-sm text-slate-500">People you follow. Select View profile to see their profile.</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setActiveTab('profile')}
+                                className="self-start rounded-xl bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-200"
+                            >
+                                Back to profile
+                            </button>
+                        </div>
+
+                        {isLoadingFollowees && <p className="mt-5 text-sm font-semibold text-slate-500">Loading followees...</p>}
+                        {followeesError && <p className="mt-5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{followeesError}</p>}
+                        {!isLoadingFollowees && !followeesError && followees.length === 0 && (
+                            <p className="mt-5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-4 text-sm font-semibold text-slate-600">You are not following anyone yet.</p>
+                        )}
+                        {!isLoadingFollowees && !followeesError && followees.length > 0 && (
+                            <div className="mt-4 grid gap-3 md:grid-cols-2">
+                                {followees.map((followee) => (
+                                    <div key={followee._id} className="flex items-center justify-between gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/40 p-4">
+                                        <div className="min-w-0">
+                                            <p className="truncate font-bold text-slate-900">{followee.name}</p>
+                                            {followee.uniqueID && <p className="mt-1 text-xs font-semibold text-indigo-600">{followee.uniqueID}</p>}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (onViewProfile) {
+                                                    onViewProfile(followee);
+                                                    return;
+                                                }
+                                                navigate(`/users/${followee._id}`);
+                                            }}
+                                            className="shrink-0 rounded-xl bg-indigo-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                                        >
+                                            View
+                                        </button>
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>
@@ -494,11 +609,6 @@ export function ProfilePage({
                                         <div className="mt-3 rounded-xl border border-indigo-100 bg-white p-3 text-sm text-slate-700">
                                             <div className="flex flex-wrap items-center justify-between gap-2">
                                                 <p className="text-xs font-bold text-indigo-500">Message</p>
-                                                {event.messageAuthor?.name && (
-                                                    <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
-                                                        By {event.messageAuthor.name}
-                                                    </span>
-                                                )}
                                             </div>
                                             <p className="mt-1 whitespace-pre-wrap font-medium">{event.message}</p>
                                         </div>
@@ -589,7 +699,8 @@ export function ProfilePage({
 
             </div>
 
-            <div className="mt-8 flex flex-col items-start gap-3">
+            <div className="mt-8 border-t border-slate-200 pt-5">
+                <div className="flex flex-col items-start gap-3">
                 <button
                     type="button"
                     onClick={() => navigate('/setting')}
@@ -611,6 +722,7 @@ export function ProfilePage({
                 >
                     {currentUser.name} (Logout)
                 </button>
+                </div>
             </div>
         </div>
     );

@@ -5,18 +5,8 @@ const PublicArchived = require('../models/PublicArchived');
 const User = require('../models/User');
 const Follower = require('../models/Follower');
 const notificationService = require('./notificationService');
+const { parseDateOnly } = require('../utils/validators');
 const { STATUS_ORDER, VALID_STATUSES, DEFAULT_STATUS } = require('../utils/constants');
-
-const getCurrentRemainingSeconds = (event) => {
-    const baseSeconds = typeof event.remainingSeconds === 'number' ? event.remainingSeconds : event.timeDuration * 60;
-
-    if (!event.timerStartedAt) {
-        return Math.max(0, baseSeconds);
-    }
-
-    const elapsedSeconds = Math.floor((Date.now() - new Date(event.timerStartedAt).getTime()) / 1000);
-    return Math.max(0, baseSeconds - elapsedSeconds);
-};
 
 const buildParticipantQuery = (userId) => {
     if (!userId) {
@@ -65,9 +55,6 @@ const migrateLegacyArchivedEvents = async (userId) => {
                     messageAuthorId: event.messageAuthorId || null,
                     date: event.date,
                     timeDuration: event.timeDuration,
-                    remainingSeconds: typeof event.remainingSeconds === 'number'
-                        ? event.remainingSeconds
-                        : event.timeDuration * 60,
                     archivedAt: event.archivedAt || event.updatedAt || event.createdAt,
                     eventCreatedAt: event.createdAt,
                     createdAt: event.createdAt,
@@ -104,12 +91,15 @@ const archiveExpiredPublicEvents = async () => {
                     creatorId: event.creatorId,
                     title: event.title,
                     description: event.description,
+                    note: event.note || '',
                     location: event.location,
                     duration: event.duration,
                     date: event.date,
                     time: event.time,
+                    startTimeEnabled: event.startTimeEnabled !== false,
                     endDate: event.endDate,
                     endTime: event.endTime,
+                    endTimeEnabled: event.endTimeEnabled !== false,
                     likedBy: event.likedBy || [],
                     archivedAt: event.updatedAt || event.createdAt || now,
                     createdAt: event.createdAt,
@@ -144,6 +134,28 @@ const eventService = {
             throw error;
         }
 
+        // Availability is part of the target user's scheduling preference. Keep
+        // this check in the service so it also protects requests made outside
+        // the search page or by a modified client.
+        if (target.availabilityType === 'custom') {
+            const requestedDate = parseDateOnly(date);
+            const requestedDateKey = /^\d{4}-\d{2}-\d{2}$/.test(String(date).trim())
+                ? String(date).trim()
+                : (requestedDate ? requestedDate.toISOString().slice(0, 10) : '');
+            const savedDates = Array.isArray(target.availableDates) && target.availableDates.length > 0
+                ? target.availableDates
+                : (target.availableDate ? [target.availableDate] : []);
+            const isAvailable = savedDates.some((availableDate) => (
+                availableDate && new Date(availableDate).toISOString().slice(0, 10) === requestedDateKey
+            ));
+
+            if (!isAvailable) {
+                const error = new Error('The selected user is not available on this date.');
+                error.statusCode = 400;
+                throw error;
+            }
+        }
+
         const trimmedMessage = message ? message.trim() : '';
         const initialMessage = trimmedMessage ? `${creator.name}: ${trimmedMessage}` : '';
         const event = new Event({
@@ -154,7 +166,6 @@ const eventService = {
             messageAuthorId: trimmedMessage ? creatorId : null,
             date: new Date(date),
             timeDuration: timeDuration,
-            remainingSeconds: timeDuration * 60,
             status: DEFAULT_STATUS,
         });
 
@@ -279,8 +290,6 @@ const eventService = {
 
         event.date = new Date(updates.date);
         event.timeDuration = updates.timeDuration;
-        event.remainingSeconds = updates.timeDuration * 60;
-        event.timerStartedAt = null;
         await event.save();
         if (nextMessage) {
             const actorId = String(updates.actorUserId);
@@ -419,10 +428,6 @@ const eventService = {
         }
 
         event.status = 'published';
-        if (typeof event.remainingSeconds !== 'number') {
-            event.remainingSeconds = event.timeDuration * 60;
-        }
-        event.timerStartedAt = null;
         await event.save();
         const otherParticipantId = String(event.creatorId) === String(actorUserId)
             ? event.targetId
@@ -478,7 +483,6 @@ const eventService = {
             messageAuthorId: event.messageAuthorId || null,
             date: event.date,
             timeDuration: event.timeDuration,
-            remainingSeconds: getCurrentRemainingSeconds(event),
             archivedAt: new Date(),
             eventCreatedAt: event.createdAt,
             createdAt: event.createdAt,
@@ -497,52 +501,7 @@ const eventService = {
         return archivedEvent;
     },
 
-    startEventTimer: async (eventId, actorUserId) => {
-        const event = await Event.findById(eventId);
-        if (!event) {
-            const error = new Error('Event not found.');
-            error.statusCode = 404;
-            throw error;
-        }
-
-        if (event.status !== 'published') {
-            const error = new Error('Only published events can be started.');
-            error.statusCode = 400;
-            throw error;
-        }
-
-        if (!actorUserId || event.creatorId?.toString() !== actorUserId.toString()) {
-            const error = new Error('Only the creator can start this event.');
-            error.statusCode = 403;
-            throw error;
-        }
-
-        if (event.timerStartedAt) {
-            const error = new Error('This event timer is already running.');
-            error.statusCode = 400;
-            throw error;
-        }
-
-        const remainingSeconds = getCurrentRemainingSeconds(event);
-        if (remainingSeconds <= 0) {
-            const error = new Error('This event timer has already finished.');
-            error.statusCode = 400;
-            throw error;
-        }
-
-        event.remainingSeconds = remainingSeconds;
-        event.timerStartedAt = new Date();
-        await event.save();
-        await event.populate([
-            { path: 'creatorId', select: 'name profession' },
-            { path: 'targetId', select: 'name profession' },
-            { path: 'messageAuthorId', select: 'name profession' },
-        ]);
-
-        return event;
-    },
-
-    createPublicEvent: async (creatorId, title, description, location, startDate, startTime, endDate, endTime, duration) => {
+    createPublicEvent: async (creatorId, title, description, location, startDate, startTime, endDate, endTime, duration, note = '', startTimeEnabled = true, endTimeEnabled = true) => {
         const creator = await User.findById(creatorId).lean();
 
         if (!creator) {
@@ -551,16 +510,26 @@ const eventService = {
             throw error;
         }
 
+        const storedEndDate = new Date(`${endDate}T${endTimeEnabled ? endTime : '00:00'}`);
+        if (!endTimeEnabled) {
+            // Disabled end times are inclusive dates; keep the next midnight
+            // internally so expiration happens after the selected date.
+            storedEndDate.setDate(storedEndDate.getDate() + 1);
+        }
+
         const publicEvent = new PublicEvent({
             creatorId,
             title: title.trim(),
             description: description.trim(),
+            note: String(note || '').trim(),
             location: location.trim(),
             duration: Number(duration),
-            date: new Date(`${startDate}T${startTime}`),
-            time: String(startTime).trim(),
-            endDate: new Date(`${endDate}T${endTime}`),
-            endTime: String(endTime).trim(),
+            date: new Date(`${startDate}T${startTimeEnabled ? startTime : '00:00'}`),
+            time: String(startTimeEnabled ? startTime : '00:00').trim(),
+            startTimeEnabled,
+            endDate: storedEndDate,
+            endTime: String(endTimeEnabled ? endTime : '00:00').trim(),
+            endTimeEnabled,
         });
 
         await publicEvent.save();
@@ -591,6 +560,15 @@ const eventService = {
             .populate('creatorId', 'name profession')
             .sort({ date: 1, time: 1, createdAt: -1 })
             .lean();
+    },
+
+    countPublicEvents: async (creatorId) => {
+        if (!creatorId) return 0;
+
+        // This count is intentionally limited to currently active public events.
+        // Expired events are moved to PublicArchived by getPublicEvents and must
+        // not contribute to the total shown on the creator's public page.
+        return PublicEvent.countDocuments({ creatorId });
     },
 
     likePublicEvent: async (eventId, actorUserId) => {

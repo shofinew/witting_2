@@ -29,6 +29,14 @@ const auditLogSchema = new mongoose.Schema({
         type: String,
         trim: true,
     },
+    browserName: {
+        type: String,
+        trim: true,
+    },
+    operatingSystem: {
+        type: String,
+        trim: true,
+    },
     details: {
         type: String,
         trim: true,

@@ -57,6 +57,18 @@ const userSchema = new mongoose.Schema({
     dateOfBirth: {
         type: Date,
     },
+    availableDate: {
+        type: Date,
+    },
+    availableDates: {
+        type: [Date],
+        default: [],
+    },
+    availabilityType: {
+        type: String,
+        enum: ['everyday', 'custom'],
+        default: 'everyday',
+    },
     gender: {
         type: String,
         enum: ['male', 'female', 'others'],
@@ -73,6 +85,11 @@ const userSchema = new mongoose.Schema({
     chamber: {
         type: String,
         trim: true,
+    },
+    timezone: {
+        type: String,
+        enum: ['Asia/Dhaka', 'Asia/Kolkata'],
+        default: 'Asia/Dhaka',
     },
     designation: {
         type: String,

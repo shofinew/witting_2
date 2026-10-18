@@ -39,12 +39,8 @@ const archivedSchema = new mongoose.Schema(
         timeDuration: {
             type: Number,
             required: true,
-            min: 10,
-            max: 60,
-        },
-        remainingSeconds: {
-            type: Number,
             min: 0,
+            max: 60,
         },
         archivedAt: {
             type: Date,

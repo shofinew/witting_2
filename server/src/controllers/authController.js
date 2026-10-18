@@ -53,6 +53,16 @@ const getAllUsers = asyncHandler(async (req, res) => {
     }
 });
 
+const getFollowees = asyncHandler(async (req, res) => {
+    try {
+        const followees = await authService.getFollowees(req.auth.userId);
+        return res.status(200).json({ followees });
+    } catch (error) {
+        console.error('Fetch followees error:', error);
+        return res.status(500).json({ message: 'Server error while fetching followees.' });
+    }
+});
+
 const requestPasswordReset = asyncHandler(async (req, res) => {
     const { email } = req.body;
 
@@ -216,6 +226,7 @@ module.exports = {
     resetPassword,
     validateSession,
     getAllUsers,
+    getFollowees,
     getUserById,
     updateProfile,
     setUserPaused,

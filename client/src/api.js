@@ -210,6 +210,19 @@ export const authAPI = {
         return data;
     },
 
+    getFollowees: async () => {
+        const response = await fetch(`${API_URL}/followees`);
+        const data = await safeJsonParse(response, 'Failed to load followees');
+
+        if (!response.ok) {
+            const error = new Error(data.message || 'Failed to load followees');
+            error.statusCode = response.status;
+            throw error;
+        }
+
+        return data;
+    },
+
     updateProfile: async (userId, updates) => {
         const response = await fetch(`${API_URL}/profile/${userId}`, {
             method: 'PUT',
@@ -448,24 +461,6 @@ export const eventAPI = {
         return data;
     },
 
-    start: async (eventId, actorUserId) => {
-        const response = await fetch(`${API_URL}/event/${eventId}/start`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                actorUserId,
-            }),
-        });
-        const data = await safeJsonParse(response, 'Failed to start event timer');
-
-        if (!response.ok) {
-            const error = new Error(data.message || 'Failed to start event timer');
-            error.statusCode = response.status;
-            throw error;
-        }
-
-        return data;
-    },
 };
 
 export const notificationAPI = {
@@ -513,6 +508,51 @@ export const notificationAPI = {
     },
 };
 
+export const myNoticeAPI = {
+    getAll: async () => {
+        const response = await fetch(`${API_URL}/my-notices`);
+        const data = await safeJsonParse(response, 'Failed to load My Notice entries');
+
+        if (!response.ok) {
+            const error = new Error(data.message || 'Failed to load My Notice entries');
+            error.statusCode = response.status;
+            throw error;
+        }
+
+        return data;
+    },
+
+    getByUser: async (userId) => {
+        const response = await fetch(`${API_URL}/my-notices/user/${userId}`);
+        const data = await safeJsonParse(response, 'Failed to load user notices');
+
+        if (!response.ok) {
+            const error = new Error(data.message || 'Failed to load user notices');
+            error.statusCode = response.status;
+            throw error;
+        }
+
+        return data;
+    },
+
+    create: async (content) => {
+        const response = await fetch(`${API_URL}/my-notices`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content }),
+        });
+        const data = await safeJsonParse(response, 'Failed to create My Notice');
+
+        if (!response.ok) {
+            const error = new Error(data.message || 'Failed to create My Notice');
+            error.statusCode = response.status;
+            throw error;
+        }
+
+        return data;
+    },
+};
+
 export const publicEventAPI = {
     getAll: async (creatorId, viewerUserId) => {
         const params = new URLSearchParams();
@@ -531,7 +571,7 @@ export const publicEventAPI = {
         return data;
     },
 
-    create: async (creatorId, title, description, location, startDate, startTime, endDate, endTime) => {
+    create: async (creatorId, title, description, location, startDate, startTime, endDate, endTime, note = '', startTimeEnabled = true, endTimeEnabled = true) => {
         const response = await fetch(`${API_URL}/public-events`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -544,6 +584,9 @@ export const publicEventAPI = {
                 startTime,
                 endDate,
                 endTime,
+                note,
+                startTimeEnabled,
+                endTimeEnabled,
             }),
         });
         const data = await safeJsonParse(response, 'Failed to create public event');

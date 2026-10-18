@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { publicEventAPI } from '../api';
 import { ProfileTabs } from '../components/ProfileTabs';
 import { ProfileHeader } from '../components/ProfileHeader';
@@ -15,6 +15,20 @@ const getDateAfterDays = (days) => {
     const date = new Date();
     date.setDate(date.getDate() + days);
     return getLocalDateInputValue(date);
+};
+
+const formatEventDate = (value) => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
+    if (!match) return '';
+
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    if (Number.isNaN(date.getTime())) return '';
+
+    return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+    }).replace(',', '/').replace(' ', '/');
 };
 
 const parseTimeValue = (value) => {
@@ -45,7 +59,7 @@ const formatTimeValue = ({ hour, minute, period }) => {
     return `${String(hour24).padStart(2, '0')}:${minute}`;
 };
 
-function TimePicker({ label, value, onChange, disabled }) {
+function TimePicker({ label, value, onChange, disabled, enabled, onToggle }) {
     const [parts, setParts] = useState(() => parseTimeValue(value));
 
     useEffect(() => {
@@ -63,13 +77,29 @@ function TimePicker({ label, value, onChange, disabled }) {
 
     return (
         <div>
-            <span className="mb-1 block text-sm font-semibold text-indigo-700">{label}</span>
+            <div className="mb-1 flex items-center justify-between gap-2">
+                <span className="block text-sm font-semibold text-indigo-700">{label}</span>
+                <button
+                    type="button"
+                    role="switch"
+                    aria-checked={enabled}
+                    aria-label={`${label} toggle`}
+                    onClick={() => onToggle(!enabled)}
+                    disabled={disabled}
+                    className={`flex items-center gap-1.5 text-[11px] font-semibold ${enabled ? 'text-indigo-700' : 'text-slate-500'}`}
+                >
+                    <span className={`relative inline-flex h-5 w-9 items-center rounded-full transition ${enabled ? 'bg-indigo-600' : 'bg-slate-300'}`}>
+                        <span className={`h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${enabled ? 'translate-x-4' : 'translate-x-1'}`} />
+                    </span>
+                    {enabled ? 'On' : 'Off'}
+                </button>
+            </div>
             <div className="grid grid-cols-[1fr_1.15fr_1fr] gap-1.5">
                 <select
                     aria-label={`${label} hour`}
                     value={parts.hour}
                     onChange={(event) => updatePart('hour', event.target.value)}
-                    disabled={disabled}
+                    disabled={disabled || !enabled}
                     className="w-full rounded-xl border border-indigo-200 bg-white px-2 py-2.5 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 >
                     <option value="">Hour</option>
@@ -81,7 +111,7 @@ function TimePicker({ label, value, onChange, disabled }) {
                     aria-label={`${label} minute`}
                     value={parts.minute}
                     onChange={(event) => updatePart('minute', event.target.value)}
-                    disabled={disabled}
+                    disabled={disabled || !enabled}
                     className="w-full rounded-xl border border-indigo-200 bg-white px-2 py-2.5 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 >
                     <option value="">Minute</option>
@@ -94,7 +124,7 @@ function TimePicker({ label, value, onChange, disabled }) {
                     aria-label={`${label} AM or PM`}
                     value={parts.period}
                     onChange={(event) => updatePart('period', event.target.value)}
-                    disabled={disabled}
+                    disabled={disabled || !enabled}
                     className="w-full rounded-xl border border-indigo-200 bg-white px-2 py-2.5 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 >
                     <option value="">AM/PM</option>
@@ -112,16 +142,22 @@ function PublicEventModal({
     setTitle,
     description,
     setDescription,
+    note,
+    setNote,
     location,
     setLocation,
     startDate,
     setStartDate,
     startTime,
     setStartTime,
+    startTimeEnabled,
+    onStartTimeToggle,
     endDate,
     setEndDate,
     endTime,
     setEndTime,
+    endTimeEnabled,
+    onEndTimeToggle,
     error,
     isSubmitting,
     onSubmit,
@@ -147,6 +183,14 @@ function PublicEventModal({
     const setEndDateTo = (daysFromToday) => {
         const nextDate = getDateAfterDays(daysFromToday);
         setEndDate(startDate && startDate > nextDate ? startDate : nextDate);
+    };
+
+    const handleEndDateChange = (nextDate) => {
+        if (startDate && nextDate < startDate) {
+            return;
+        }
+
+        setEndDate(nextDate);
     };
 
     return (
@@ -208,6 +252,17 @@ function PublicEventModal({
                             placeholder="Write event details..."
                         />
                     </div>
+                    <div>
+                        <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-indigo-700">N.B. (Remember)</label>
+                        <textarea
+                            value={note}
+                            onChange={(e) => setNote(e.target.value)}
+                            rows={2}
+                            disabled={isSubmitting}
+                            className="w-full rounded-xl border border-indigo-200 px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-gray-100 disabled:text-gray-500"
+                            placeholder="Add a note to remember..."
+                        />
+                    </div>
                     <fieldset className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3">
                         <legend className="px-1 text-xs font-bold uppercase tracking-wide text-indigo-700">Starts</legend>
                         <div className="space-y-2">
@@ -216,7 +271,7 @@ function PublicEventModal({
                             <input
                                 id="public-event-start-date"
                                 value={startDate}
-                                onChange={(e) => handleStartDateChange(e.target.value)}
+                                onChange={(event) => handleStartDateChange(event.target.value)}
                                 type="date"
                                 min={minEventDate}
                                 disabled={isSubmitting}
@@ -227,7 +282,7 @@ function PublicEventModal({
                                     <button type="button" onClick={() => setStartDateTo(1)} disabled={isSubmitting} className="rounded-lg border border-indigo-200 bg-white px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60">Tomorrow</button>
                                 </div>
                             </div>
-                            <TimePicker label="Time" value={startTime} onChange={setStartTime} disabled={isSubmitting} />
+                            <TimePicker label="Time" value={startTime} onChange={setStartTime} enabled={startTimeEnabled} onToggle={onStartTimeToggle} disabled={isSubmitting} />
                         </div>
                     </fieldset>
                     <fieldset className="rounded-xl border border-fuchsia-100 bg-fuchsia-50/50 p-3">
@@ -238,7 +293,7 @@ function PublicEventModal({
                             <input
                                 id="public-event-end-date"
                                 value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
+                                onChange={(event) => handleEndDateChange(event.target.value)}
                                 type="date"
                                 min={startDate || minEventDate}
                                 disabled={isSubmitting}
@@ -249,7 +304,7 @@ function PublicEventModal({
                                     <button type="button" onClick={() => setEndDateTo(1)} disabled={isSubmitting} className="rounded-lg border border-fuchsia-200 bg-white px-2.5 py-1 text-xs font-semibold text-fuchsia-700 hover:bg-fuchsia-50 disabled:opacity-60">Tomorrow</button>
                                 </div>
                             </div>
-                            <TimePicker label="Time" value={endTime} onChange={setEndTime} disabled={isSubmitting} />
+                            <TimePicker label="Time" value={endTime} onChange={setEndTime} enabled={endTimeEnabled} onToggle={onEndTimeToggle} disabled={isSubmitting} />
                         </div>
                     </fieldset>
                 </div>
@@ -277,17 +332,22 @@ function PublicEventModal({
     );
 }
 
-export function PublicPage({ currentUser }) {
+export function PublicPage({ currentUser, onLogout, homeEvents, now }) {
+    const navigate = useNavigate();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
+    const [note, setNote] = useState('');
     const [eventLocation, setEventLocation] = useState('');
     const [startDate, setStartDate] = useState('');
     const [startTime, setStartTime] = useState('');
+    const [startTimeEnabled, setStartTimeEnabled] = useState(false);
     const [endDate, setEndDate] = useState('');
     const [endTime, setEndTime] = useState('');
+    const [endTimeEnabled, setEndTimeEnabled] = useState(false);
     const [error, setError] = useState('');
     const [events, setEvents] = useState([]);
+    const [totalEvents, setTotalEvents] = useState(0);
     const [isLoading, setIsLoading] = useState(false);
     const [refreshNonce, setRefreshNonce] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -310,6 +370,7 @@ export function PublicPage({ currentUser }) {
                 const data = await publicEventAPI.getAll(creatorId || undefined, currentUser?._id);
                 if (isMounted) {
                     setEvents(data.events || []);
+                    setTotalEvents(Number.isFinite(Number(data.total)) ? Number(data.total) : (data.events || []).length);
                 }
             } catch (err) {
                 if (isMounted) {
@@ -333,11 +394,14 @@ export function PublicPage({ currentUser }) {
         setIsModalOpen(false);
         setTitle('');
         setDescription('');
+        setNote('');
         setEventLocation('');
         setStartDate('');
         setStartTime('');
+        setStartTimeEnabled(false);
         setEndDate('');
         setEndTime('');
+        setEndTimeEnabled(false);
         setError('');
     };
 
@@ -369,7 +433,14 @@ export function PublicPage({ currentUser }) {
             return timeValue ? String(timeValue).trim() : 'TBD';
         }
 
-        const dateLabel = parsedDate.toISOString().split('T')[0];
+        // Public event dates are calendar dates. Keep the date portion sent by
+        // the API instead of converting midnight through UTC, which can turn
+        // Oct/18 into Oct/17 in some time zones.
+        const datePartMatch = /^(\d{4}-\d{2}-\d{2})/.exec(String(dateValue));
+        const datePart = datePartMatch
+            ? datePartMatch[1]
+            : `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`;
+        const dateLabel = formatEventDate(datePart);
         return timeValue ? `${dateLabel} ${String(timeValue).trim()}` : dateLabel;
     };
 
@@ -395,18 +466,42 @@ export function PublicPage({ currentUser }) {
                 return;
             }
 
-            if (!title.trim() || !description.trim() || !eventLocation.trim() || !startDate || !startTime || !endDate || !endTime) {
-                setError('Title, description, location, start date/time, and end date/time are required.');
+            if (!title.trim() || !description.trim() || !eventLocation.trim() || !startDate || !endDate) {
+                setError('Title, description, location, start date, and end date are required.');
                 return;
             }
 
-            const startDateTime = new Date(`${startDate}T${startTime}`);
-            if (Number.isNaN(startDateTime.getTime()) || startDateTime <= new Date()) {
+            if ((startTimeEnabled && !startTime) || (endTimeEnabled && !endTime)) {
+                setError('Select a start/end time or switch that time off.');
+                return;
+            }
+
+            const selectedStartTime = startTimeEnabled ? startTime : '00:00';
+            const selectedEndTime = endTimeEnabled ? endTime : '00:00';
+            const startDateTime = new Date(`${startDate}T${selectedStartTime}`);
+            if (Number.isNaN(startDateTime.getTime())) {
+                setError('Start date is invalid.');
+                return;
+            }
+
+            const todayDate = getLocalDateInputValue(new Date());
+            if (startTimeEnabled && startDateTime <= new Date()) {
                 setError('Start date and time must be in the future.');
                 return;
             }
 
-            const endDateTime = new Date(`${endDate}T${endTime}`);
+            if (!startTimeEnabled && startDate < todayDate) {
+                setError('Start date must be today or a future date.');
+                return;
+            }
+
+            const endDateTime = new Date(`${endDate}T${selectedEndTime}`);
+            // A disabled end time means the event runs through the selected
+            // end date. Use the following midnight as the exclusive boundary
+            // so the same start/end date represents one full calendar day.
+            if (!endTimeEnabled) {
+                endDateTime.setDate(endDateTime.getDate() + 1);
+            }
             if (Number.isNaN(endDateTime.getTime()) || endDateTime <= startDateTime) {
                 setError('End date and time must be after the start date and time.');
                 return;
@@ -421,11 +516,15 @@ export function PublicPage({ currentUser }) {
                     description.trim(),
                     eventLocation.trim(),
                     startDate,
-                    startTime,
+                    selectedStartTime,
                     endDate,
-                    endTime
+                    selectedEndTime,
+                    note.trim(),
+                    startTimeEnabled,
+                    endTimeEnabled
                 );
                 setEvents((prev) => [data.event, ...prev]);
+                setTotalEvents((previous) => previous + 1);
                 closeModal();
             } catch (err) {
                 setError(err.message || 'Failed to create public event.');
@@ -455,6 +554,7 @@ export function PublicPage({ currentUser }) {
                 setError('');
                 await publicEventAPI.remove(eventId, currentUser._id);
                 setEvents((prev) => prev.filter((event) => event._id !== eventId));
+                setTotalEvents((previous) => Math.max(0, previous - 1));
             } catch (err) {
                 setError(err.message || 'Failed to delete public event.');
             } finally {
@@ -496,7 +596,7 @@ export function PublicPage({ currentUser }) {
                 {isMyPublicView && (
                     <div className="mb-6">
                         <ProfileHeader currentUser={currentUser} />
-                        <ProfileTabs currentUser={currentUser} activeTab="public" />
+                        <ProfileTabs currentUser={currentUser} activeTab="public" events={homeEvents} now={now} hideContent />
                     </div>
                 )}
                 <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -509,6 +609,11 @@ export function PublicPage({ currentUser }) {
                         <p className="mt-3 text-base text-slate-600">
                             Create and manage public-facing events from here.
                         </p>
+                        {isMyPublicView && (
+                            <p className="mt-2 inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-sm font-semibold text-indigo-700">
+                                Total created public events: {totalEvents}
+                            </p>
+                        )}
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-2">
                         <button
@@ -571,6 +676,11 @@ export function PublicPage({ currentUser }) {
                                         <p className="text-sm text-slate-500">
                                             Duration: {formatDuration(getPublicEventDuration(event))}
                                         </p>
+                                        {event.note?.trim() && (
+                                            <p className="text-sm text-slate-500">
+                                                N.B. (Remember): {event.note}
+                                            </p>
+                                        )}
                                     </div>
                                     <div className="flex shrink-0 flex-col gap-3">
                                         <div className="rounded-xl bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700">
@@ -613,6 +723,34 @@ export function PublicPage({ currentUser }) {
                         })}
                     </div>
                 )}
+
+                {isMyPublicView && (
+                    <div className="mt-8 border-t border-slate-200 pt-5">
+                        <div className="flex flex-col items-start gap-3">
+                        <button
+                            type="button"
+                            onClick={() => navigate('/setting')}
+                            className="text-sm font-semibold text-indigo-700 transition hover:text-fuchsia-600"
+                        >
+                            Setting
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => navigate('/feedback')}
+                            className="text-sm font-semibold text-indigo-700 transition hover:text-fuchsia-600"
+                        >
+                            Feedback
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onLogout}
+                            className="text-sm font-semibold text-slate-700 transition hover:text-red-600"
+                        >
+                            {currentUser.name} (Logout)
+                        </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {isModalOpen && (
@@ -621,16 +759,28 @@ export function PublicPage({ currentUser }) {
                     setTitle={setTitle}
                     description={description}
                     setDescription={setDescription}
+                    note={note}
+                    setNote={setNote}
                     location={eventLocation}
                     setLocation={setEventLocation}
                     startDate={startDate}
                     setStartDate={setStartDate}
                     startTime={startTime}
                     setStartTime={setStartTime}
+                    startTimeEnabled={startTimeEnabled}
+                    onStartTimeToggle={(enabled) => {
+                        setStartTimeEnabled(enabled);
+                        if (!enabled) setStartTime('');
+                    }}
                     endDate={endDate}
                     setEndDate={setEndDate}
                     endTime={endTime}
                     setEndTime={setEndTime}
+                    endTimeEnabled={endTimeEnabled}
+                    onEndTimeToggle={(enabled) => {
+                        setEndTimeEnabled(enabled);
+                        if (!enabled) setEndTime('');
+                    }}
                     error={error}
                     isSubmitting={isSubmitting}
                     onSubmit={handleCreateEvent}

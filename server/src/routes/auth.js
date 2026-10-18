@@ -26,6 +26,7 @@ router.post('/session/validate', validateSessionRequest, authController.validate
 router.post('/follow', validateFollowRequest, authController.toggleFollow);
 router.post('/block', validateBlockRequest, authController.toggleBlock);
 router.get('/users', authController.getAllUsers);
+router.get('/followees', authController.getFollowees);
 router.get('/users/:userId', validateObjectIdParam('userId'), authController.getUserById);
 router.put('/profile/:userId', validateObjectIdParam('userId'), authController.updateProfile);
 router.patch('/users/:userId/pause', validateObjectIdParam('userId'), authController.setUserPaused);

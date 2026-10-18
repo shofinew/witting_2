@@ -17,7 +17,6 @@ router.patch('/event/:eventId', validateObjectIdParam('eventId'), eventControlle
 router.patch('/event/:eventId/advance', validateObjectIdParam('eventId'), eventController.advanceEvent);
 router.patch('/event/:eventId/publish', validateObjectIdParam('eventId'), eventController.publishEvent);
 router.patch('/event/:eventId/archive', validateObjectIdParam('eventId'), eventController.archiveEvent);
-router.patch('/event/:eventId/start', validateObjectIdParam('eventId'), eventController.startEventTimer);
 router.delete('/event/:eventId', validateObjectIdParam('eventId'), eventController.deleteEvent);
 
 module.exports = router;

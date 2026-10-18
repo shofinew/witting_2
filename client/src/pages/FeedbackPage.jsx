@@ -17,10 +17,10 @@ export function FeedbackPage({ currentUser }) {
     };
 
     return (
-        <div className="w-full rounded-3xl border border-indigo-100 bg-white/95 p-8 shadow-2xl backdrop-blur-sm">
+        <div className="w-full rounded-3xl border border-indigo-100 bg-white/95 p-4 shadow-2xl backdrop-blur-sm sm:p-8">
             <div className="mb-6">
                 <p className="text-sm font-semibold uppercase tracking-[0.25em] text-fuchsia-500">Feedback</p>
-                <h2 className="mt-2 text-3xl font-black text-slate-800">Share your thoughts</h2>
+                <h2 className="mt-2 text-2xl font-black text-slate-800 sm:text-3xl">Share your thoughts</h2>
                 <p className="mt-2 text-slate-600">Tell us what is working well or what you would like to improve in Witting.</p>
             </div>
             <hr className="mb-6 border-slate-300 border-t-2" />

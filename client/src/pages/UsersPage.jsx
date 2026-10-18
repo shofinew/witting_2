@@ -1,12 +1,12 @@
 import React from 'react';
 import { canManageUsers, getUserUniqueId } from '../utils/user';
 
-export function UsersPage({ users, isLoading, error, onRefresh, currentUser, onTogglePause }) {
+export function UsersPage({ users, isLoading, error, onRefresh, currentUser, onTogglePause, onViewProfile }) {
     return (
-        <div className="w-full bg-white/95 p-8 rounded-3xl shadow-2xl border border-indigo-100 backdrop-blur-sm">
-            <div className="flex items-center justify-between mb-6">
+        <div className="w-full rounded-3xl border border-indigo-100 bg-white/95 p-4 shadow-2xl backdrop-blur-sm sm:p-8">
+            <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h2 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-indigo-600">All Users</h2>
+                    <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-indigo-600 sm:text-3xl">All Users</h2>
                     <p className="text-gray-600 mt-1">Showing registered users data</p>
                 </div>
                 <button
@@ -31,9 +31,8 @@ export function UsersPage({ users, isLoading, error, onRefresh, currentUser, onT
                             <tr className="bg-indigo-50 text-indigo-700">
                                 <th className="p-3 font-semibold rounded-l-xl">Name</th>
                                 <th className="p-3 font-semibold">Unique ID</th>
-                                <th className="p-3 font-semibold">Email</th>
                                 <th className="p-3 font-semibold">Created</th>
-                                <th className="p-3 font-semibold rounded-r-xl">Updated</th>
+                                <th className="p-3 font-semibold rounded-r-xl">Profile</th>
                                 {canManageUsers(currentUser) && <th className="p-3 font-semibold">Account</th>}
                             </tr>
                         </thead>
@@ -42,9 +41,16 @@ export function UsersPage({ users, isLoading, error, onRefresh, currentUser, onT
                                 <tr key={user._id} className="border-b border-indigo-100">
                                     <td className="p-3 text-gray-800">{user.name}</td>
                                     <td className="p-3 text-gray-700" dir="ltr">{getUserUniqueId(user)}</td>
-                                    <td className="p-3 text-gray-700">{user.email}</td>
                                     <td className="p-3 text-gray-700">{new Date(user.createdAt).toLocaleString()}</td>
-                                    <td className="p-3 text-gray-700">{new Date(user.updatedAt).toLocaleString()}</td>
+                                    <td className="p-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => onViewProfile(user)}
+                                            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
+                                        >
+                                            View
+                                        </button>
+                                    </td>
                                     {canManageUsers(currentUser) && (
                                         <td className="p-3">
                                             <button

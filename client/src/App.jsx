@@ -14,9 +14,12 @@ import { SettingPage } from './pages/SettingPage';
 import { FeedbackPage } from './pages/FeedbackPage';
 import { UserProfilePage } from './pages/UserProfilePage';
 import { TotalEventsPage } from './pages/TotalEventsPage';
+import { MyNoticePage } from './pages/MyNoticePage';
+import { LandingPage } from './pages/LandingPage';
+import { MyTimePage } from './pages/MyTimePage';
 import { PAGE_TO_STATUS } from './constants';
 import { authAPI, userAPI, eventAPI, notificationAPI } from './api';
-import { canManageUsers, getUserUniqueId } from './utils/user';
+import { canManageUsers, getUserUniqueId, matchesUserUniqueId, normalizeUserUniqueId } from './utils/user';
 
 const isSameLocalDate = (value, today) => {
     if (!value) {
@@ -52,6 +55,35 @@ const isTodayOrFutureDate = (value, today) => {
     const normalizedToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
     return normalizedEventDate >= normalizedToday;
+};
+
+const getDateInputValue = (value) => {
+    if (!value) {
+        return '';
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+        return String(value);
+    }
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+
+    return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+};
+
+const isUserAvailableOnDate = (user, dateValue) => {
+    if (!dateValue || (user?.availabilityType || 'everyday') === 'everyday') {
+        return Boolean(dateValue);
+    }
+
+    const savedDates = Array.isArray(user?.availableDates) && user.availableDates.length > 0
+        ? user.availableDates
+        : (user?.availableDate ? [user.availableDate] : []);
+
+    return savedDates.some((date) => getDateInputValue(date) === dateValue);
 };
 
 function App() {
@@ -118,6 +150,7 @@ function App() {
     const [editingEvent, setEditingEvent] = useState(null);
     const [eventDescription, setEventDescription] = useState('');
     const [eventMessage, setEventMessage] = useState('');
+    const [isEventMessageEnabled, setIsEventMessageEnabled] = useState(true);
     const [eventDate, setEventDate] = useState('');
     const [eventDuration, setEventDuration] = useState('');
     const [eventError, setEventError] = useState('');
@@ -375,7 +408,7 @@ function App() {
             fetchEventsByStatus(status);
         }
 
-        if (activePage === 'profile') {
+        if (activePage === 'profile' || activePage === 'my-time') {
             fetchEventsByStatus('stage3');
             fetchEventsByStatus('stage2');
             fetchEventsByStatus('stage1');
@@ -383,9 +416,16 @@ function App() {
             fetchEventsByStatus('archived');
         }
 
+        if (activePage === 'landing') {
+            fetchEventsByStatus('stage3');
+            fetchEventsByStatus('stage2');
+            fetchEventsByStatus('stage1');
+            fetchEventsByStatus('published');
+        }
+
     }, [activePage, currentUser]);
 
-    const normalizedSearch = searchedUniqueId.trim().toLowerCase();
+    const normalizedSearch = normalizeUserUniqueId(searchedUniqueId);
     const filteredUsers = useMemo(
         () =>
             users.filter((user) => {
@@ -397,13 +437,14 @@ function App() {
                     return false;
                 }
 
-                return getUserUniqueId(user).toLowerCase().includes(normalizedSearch);
+                return matchesUserUniqueId(user, normalizedSearch);
             }),
         [normalizedSearch, users]
     );
 
     const handleSearchUsers = () => {
         setSearchedUniqueId(searchInput.trim());
+        setSearchInput('');
     };
 
     const handleRegister = async (e) => {
@@ -464,7 +505,7 @@ function App() {
             setLoginPassword('');
             clearPasswordResetState();
             setAuthSuccess(data.message || 'Login successful');
-            navigate(canManageUsers(data.user) ? '/users' : '/home');
+            navigate('/landing');
         } catch (err) {
             setAuthError(err.message || 'Network error: please try again.');
         } finally {
@@ -556,6 +597,7 @@ function App() {
         setEditingEvent(null);
         setEventDescription('');
         setEventMessage('');
+        setIsEventMessageEnabled(true);
         setEventDate('');
         setEventDuration('');
         setEventError('');
@@ -585,6 +627,7 @@ function App() {
         setEventUser(user);
         setEventDescription('');
         setEventMessage('');
+        setIsEventMessageEnabled(true);
         setEventDate('');
         setEventDuration('');
         setEventError('');
@@ -597,7 +640,7 @@ function App() {
         setEventDescription(event.description || '');
         setEventMessage('');
         setEventDate(event.date ? new Date(event.date).toISOString().split('T')[0] : '');
-        setEventDuration(event.timeDuration ? String(event.timeDuration) : '');
+        setEventDuration(event.timeDuration == null ? '' : String(event.timeDuration));
         setEventError('');
         setEventSuccess('');
     };
@@ -629,13 +672,23 @@ function App() {
             return;
         }
 
-        if (!eventDescription.trim() || !eventDate || !eventDuration) {
-            setEventError('Description, date, and time duration are required.');
+        if (!eventDescription.trim() || !eventDate) {
+            setEventError('Description and date are required.');
+            return;
+        }
+
+        if (!eventDuration) {
+            setEventError('Time duration is required.');
             return;
         }
 
         if (isPastEventDate(eventDate)) {
             setEventError('Event date must be today or a future date.');
+            return;
+        }
+
+        if (!isUserAvailableOnDate(eventUser, eventDate)) {
+            setEventError('The selected user is not available on this date.');
             return;
         }
 
@@ -645,7 +698,7 @@ function App() {
                 currentUser._id,
                 eventUser._id,
                 eventDescription.trim(),
-                eventMessage.trim(),
+                isEventMessageEnabled ? eventMessage.trim() : '',
                 eventDate,
                 Number(eventDuration)
             );
@@ -670,7 +723,7 @@ function App() {
             return;
         }
 
-        if (!eventDescription.trim() || !eventDate || !eventDuration) {
+        if (!eventDescription.trim() || !eventDate || eventDuration == null || eventDuration === '') {
             setEventError('Description, date, and time duration are required.');
             return;
         }
@@ -788,23 +841,6 @@ function App() {
             ]);
         } catch (err) {
             setEventActionError(err.message || 'Network error: could not archive event.');
-        } finally {
-            setActiveEventActionId('');
-            setActiveEventActionType('');
-        }
-    };
-
-    const handleStartEvent = async (eventId) => {
-        try {
-            setActiveEventActionId(eventId);
-            setActiveEventActionType('start');
-            setEventActionError('');
-            setEventActionSuccess('');
-            const data = await eventAPI.start(eventId, currentUser?._id);
-            setEventActionSuccess(data.message || 'Event timer started successfully.');
-            await fetchEventsByStatus('published');
-        } catch (err) {
-            setEventActionError(err.message || 'Network error: could not start event timer.');
         } finally {
             setActiveEventActionId('');
             setActiveEventActionType('');
@@ -930,8 +966,8 @@ function App() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-fuchsia-200 via-sky-100 to-cyan-100 p-0">
-            <div className="max-w-5xl mx-auto">
+        <div className="min-h-screen bg-gradient-to-br from-fuchsia-200 via-sky-100 to-cyan-100 px-2 pb-4 pt-1 sm:px-4 sm:pt-2">
+            <div className="mx-auto w-full max-w-5xl">
                 <Header
                     activePage={activePage}
                     formattedDate={formattedDate}
@@ -945,7 +981,36 @@ function App() {
                 />
 
                 <Routes>
-                    <Route path="/" element={<Navigate replace to="/home" />} />
+                    <Route path="/" element={<Navigate replace to="/landing" />} />
+                    <Route
+                        path="/landing"
+                        element={<LandingPage currentUser={currentUser} eventCounts={eventCounts} />}
+                    />
+                    <Route
+                        path="/my-time"
+                        element={
+                            <MyTimePage
+                                currentUser={currentUser}
+                                onLogout={handleLogout}
+                                events={[
+                                    ...(eventsByStatus.stage3 || []),
+                                    ...(eventsByStatus.stage2 || []),
+                                    ...(eventsByStatus.stage1 || []),
+                                    ...(eventsByStatus.published || []),
+                                    ...(eventsByStatus.archived || []),
+                                ]}
+                                now={now}
+                                onRefresh={() => Promise.all([
+                                    fetchEventsByStatus('stage3'),
+                                    fetchEventsByStatus('stage2'),
+                                    fetchEventsByStatus('stage1'),
+                                    fetchEventsByStatus('published'),
+                                    fetchEventsByStatus('archived'),
+                                ])}
+                                onUserUpdate={handleUserUpdate}
+                            />
+                        }
+                    />
                     <Route
                         path="/home"
                         element={
@@ -963,7 +1028,6 @@ function App() {
                                 onAdvance={handleAdvanceEvent}
                                 onPublish={handlePublishEvent}
                                 onArchive={handleArchiveEvent}
-                                onStart={handleStartEvent}
                             />
                         }
                     />
@@ -984,11 +1048,31 @@ function App() {
                                 onAdvance={handleAdvanceEvent}
                                 onPublish={handlePublishEvent}
                                 onArchive={handleArchiveEvent}
-                                onStart={handleStartEvent}
                             />
                         }
                     />
-                    <Route path="/public" element={<PublicPage currentUser={currentUser} />} />
+                    <Route
+                        path="/public"
+                        element={
+                            <PublicPage
+                                currentUser={currentUser}
+                                onLogout={handleLogout}
+                                homeEvents={eventsByStatus.published}
+                                now={now}
+                            />
+                        }
+                    />
+                    <Route
+                        path="/my-notice"
+                        element={
+                            <MyNoticePage
+                                currentUser={currentUser}
+                                onLogout={handleLogout}
+                                homeEvents={eventsByStatus.published}
+                                now={now}
+                            />
+                        }
+                    />
                     <Route
                         path="/users/:userId"
                         element={
@@ -1008,6 +1092,7 @@ function App() {
                                 onRefresh={fetchUsers}
                                 currentUser={currentUser}
                                 onTogglePause={handleToggleUserPause}
+                                onViewProfile={openUserProfileModal}
                             />
                             : <Navigate replace to="/home" />}
                     />
@@ -1031,7 +1116,6 @@ function App() {
                                 onEdit={openEditEventModal}
                                 onDelete={handleDeleteEvent}
                                 onArchive={handleArchiveEvent}
-                                onStart={handleStartEvent}
                             />
                         }
                     />
@@ -1055,7 +1139,6 @@ function App() {
                                 onEdit={openEditEventModal}
                                 onDelete={handleDeleteEvent}
                                 onArchive={handleArchiveEvent}
-                                onStart={handleStartEvent}
                             />
                         }
                     />
@@ -1079,7 +1162,6 @@ function App() {
                                 onEdit={openEditEventModal}
                                 onDelete={handleDeleteEvent}
                                 onArchive={handleArchiveEvent}
-                                onStart={handleStartEvent}
                             />
                         }
                     />
@@ -1108,7 +1190,14 @@ function App() {
                                 currentUser={currentUser}
                                 onUserUpdate={handleUserUpdate}
                                 onLogout={handleLogout}
+                                events={eventsByStatus.published}
+                                now={now}
                                 archivedEvents={eventsByStatus.archived}
+                                onRefresh={() => Promise.all([
+                                    fetchEventsByStatus('published'),
+                                    fetchEventsByStatus('archived'),
+                                ])}
+                                onViewProfile={openUserProfileModal}
                                 archiveLoading={eventsLoading.archived}
                                 archiveError={eventsError.archived}
                                 expiredEvents={expiredEvents}
@@ -1148,10 +1237,18 @@ function App() {
                     setEventDescription={setEventDescription}
                     eventMessage={eventMessage}
                     setEventMessage={setEventMessage}
+                    isMessageEnabled={isEventMessageEnabled}
+                    onMessageToggle={(enabled) => {
+                        setIsEventMessageEnabled(enabled);
+                        if (!enabled) {
+                            setEventMessage('');
+                        }
+                    }}
                     existingMessage={editingEvent?.message || ''}
                     canAddMessage={canAddEventMessage}
                     eventDate={eventDate}
                     setEventDate={setEventDate}
+                    isTargetAvailable={isUserAvailableOnDate(eventUser, eventDate)}
                     eventDuration={eventDuration}
                     setEventDuration={setEventDuration}
                     eventError={eventError}

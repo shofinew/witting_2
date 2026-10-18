@@ -1,5 +1,20 @@
 import React from 'react';
+import { useRef } from 'react';
 import { DURATION_OPTIONS } from '../constants';
+
+const formatEventDate = (value) => {
+    if (!value) {
+        return '';
+    }
+
+    const [year, month, day] = String(value).slice(0, 10).split('-').map(Number);
+    if (!year || !month || !day) {
+        return '';
+    }
+
+    const monthName = new Date(year, month - 1, day).toLocaleDateString('en-US', { month: 'short' }).replace('.', '');
+    return `${monthName}/${day}/${year}`;
+};
 
 export function EventModal({
     currentUser,
@@ -11,10 +26,13 @@ export function EventModal({
     setEventDescription,
     eventMessage,
     setEventMessage,
+    isMessageEnabled = true,
+    onMessageToggle,
     existingMessage = '',
     canAddMessage = true,
     eventDate,
     setEventDate,
+    isTargetAvailable = true,
     eventDuration,
     setEventDuration,
     eventError,
@@ -26,6 +44,27 @@ export function EventModal({
     const isEditMode = mode === 'edit';
     const displayCreator = isEditMode ? creatorUser || currentUser : currentUser;
     const minEventDate = new Date().toLocaleDateString('en-CA');
+    const isCreateDateUnavailable = !isEditMode && (!eventDate || !isTargetAvailable);
+    const datePickerRef = useRef(null);
+
+    const openDatePicker = () => {
+        const picker = datePickerRef.current;
+        if (!picker || isEventSubmitting) {
+            return;
+        }
+
+        if (typeof picker.showPicker === 'function') {
+            try {
+                picker.showPicker();
+                return;
+            } catch {
+                // Fall back to the native input click below.
+            }
+        }
+
+        picker.focus();
+        picker.click();
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -76,6 +115,22 @@ export function EventModal({
                             <label className="block text-xs font-semibold text-indigo-700">
                                 {isEditMode ? 'Messages' : 'Message'}
                             </label>
+                            {!isEditMode && (
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={isMessageEnabled}
+                                    aria-label="Toggle message on or off"
+                                    onClick={() => onMessageToggle?.(!isMessageEnabled)}
+                                    disabled={isEventSubmitting}
+                                    className={`flex items-center gap-1.5 text-[11px] font-semibold ${isMessageEnabled ? 'text-indigo-700' : 'text-slate-500'}`}
+                                >
+                                    <span className={`relative inline-flex h-5 w-9 items-center rounded-full transition ${isMessageEnabled ? 'bg-indigo-600' : 'bg-slate-300'}`}>
+                                        <span className={`h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${isMessageEnabled ? 'translate-x-4' : 'translate-x-1'}`} />
+                                    </span>
+                                    {isMessageEnabled ? 'On' : 'Off'}
+                                </button>
+                            )}
                         </div>
                         {isEditMode && (
                             <div className="mb-1 rounded-lg border border-indigo-100 bg-gray-50 px-2 py-1.5">
@@ -97,10 +152,10 @@ export function EventModal({
                             <textarea
                                 value={eventMessage}
                                 onChange={(e) => setEventMessage(e.target.value)}
-                                disabled={isEventSubmitting}
+                                disabled={isEventSubmitting || (!isEditMode && !isMessageEnabled)}
                                 rows={2}
                                 className="w-full rounded-lg border border-indigo-200 px-2 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-gray-100 disabled:text-gray-500"
-                                placeholder={isEditMode ? 'Add a reply...' : 'Add a message for this user...'}
+                                placeholder={!isEditMode && !isMessageEnabled ? 'Messages are off' : (isEditMode ? 'Add a reply...' : 'Add a message for this user...')}
                             />
                         ) : (
                             <p className="min-h-14 w-full whitespace-pre-wrap rounded-lg border border-indigo-100 bg-gray-100 px-2 py-1.5 text-xs font-medium text-slate-700 shadow-sm">
@@ -117,14 +172,37 @@ export function EventModal({
                                     {eventDate ? new Date(eventDate).toLocaleDateString() : 'Not available'}
                                 </p>
                             ) : (
-                                <input
-                                    value={eventDate}
-                                    onChange={(e) => setEventDate(e.target.value)}
-                                    disabled={isEventSubmitting}
-                                    type="date"
-                                    min={minEventDate}
-                                    className="w-full rounded-lg border border-indigo-200 px-2 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-gray-100 disabled:text-gray-500"
-                                />
+                                <div className="relative">
+                                    <input
+                                        value={formatEventDate(eventDate)}
+                                        readOnly
+                                        disabled={isEventSubmitting}
+                                        type="text"
+                                        placeholder="Select date"
+                                        aria-label="Selected event date"
+                                        onClick={openDatePicker}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                openDatePicker();
+                                            }
+                                        }}
+                                        tabIndex={0}
+                                        role="button"
+                                        style={{ cursor: isEventSubmitting ? 'not-allowed' : 'pointer' }}
+                                        className="w-full rounded-lg border border-indigo-200 px-2 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-gray-100 disabled:text-gray-500"
+                                    />
+                                    <input
+                                        ref={datePickerRef}
+                                        value={eventDate}
+                                        onChange={(e) => setEventDate(e.target.value)}
+                                        disabled={isEventSubmitting}
+                                        type="date"
+                                        min={minEventDate}
+                                        aria-label="Choose event date"
+                                        className="pointer-events-none absolute h-px w-px opacity-0"
+                                    />
+                                </div>
                             )}
                         </div>
                         <div className="hidden items-center pb-2 sm:flex">
@@ -153,15 +231,19 @@ export function EventModal({
                             )}
                         </div>
                     </div>
+                    {!isEditMode && eventDate && !isTargetAvailable && (
+                        <p className="text-xs font-semibold text-red-700">This user is not available on the selected date.</p>
+                    )}
                 </div>
                 <div className="mt-2.5 flex flex-wrap gap-1.5">
                     <button
                         type="button"
                         onClick={onSubmit}
-                        disabled={isEventSubmitting}
+                        disabled={isEventSubmitting || isCreateDateUnavailable}
+                        title={!isEditMode && !eventDate ? 'Choose an event date first.' : (!isEditMode && !isTargetAvailable ? 'The user is unavailable on this date.' : undefined)}
                         className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-70"
                     >
-                        {isEventSubmitting ? (isEditMode ? 'Updating...' : 'Submitting...') : (isEditMode ? 'Update' : 'Submit')}
+                        {isEventSubmitting ? (isEditMode ? 'Updating...' : 'Creating...') : (isEditMode ? 'Update' : 'Create Event')}
                     </button>
                     <button
                         type="button"

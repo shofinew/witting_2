@@ -27,7 +27,6 @@ export function TotalEventsPage({
     onAdvance,
     onPublish,
     onArchive,
-    onStart,
 }) {
     const [activeTab, setActiveTab] = useState('coming');
 
@@ -65,7 +64,6 @@ export function TotalEventsPage({
             onAdvance={onAdvance}
             onPublish={onPublish}
             onArchive={onArchive}
-            onStart={onStart}
             hideStartAndArchive={true}
             description="Your total confirmed event live here."
             hideSerial={true}

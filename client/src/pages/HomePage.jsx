@@ -27,7 +27,6 @@ export function HomePage({
     onAdvance,
     onPublish,
     onArchive,
-    onStart,
 }) {
     const [activeTab, setActiveTab] = useState('coming');
 
@@ -65,7 +64,6 @@ export function HomePage({
             onAdvance={onAdvance}
             onPublish={onPublish}
             onArchive={onArchive}
-            onStart={onStart}
             headerContent={
                 <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
                     <button

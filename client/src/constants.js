@@ -28,13 +28,10 @@ export const NAV_ITEMS = [
     { id: 'profile', label: 'Profile' },
 ];
 
-export const DURATION_OPTIONS = Array.from({ length: 6 }, (_, index) => {
-    const minutes = (index + 1) * 10;
-    return {
-        value: String(minutes),
-        label: `${minutes} minutes`,
-    };
-});
+export const DURATION_OPTIONS = [10, 20, 30, 40, 50, 60].map((minutes) => ({
+    value: String(minutes),
+    label: `${minutes} minutes`,
+}));
 
 export const PAGE_TO_STATUS = {
     home: 'published',
