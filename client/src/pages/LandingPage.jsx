@@ -108,7 +108,7 @@ export function LandingPage({ currentUser, eventCounts = {} }) {
     };
 
     return (
-        <main className="mt-2 overflow-hidden rounded-[10px] border border-white/70 bg-white/90 p-[10px] shadow-2xl backdrop-blur-xl lg:min-h-[calc(100vh-7rem)]">
+        <main className="mt-2 min-h-[calc(100vh-7rem)] overflow-hidden rounded-[10px] border border-white/70 bg-white/90 p-[10px] shadow-2xl backdrop-blur-xl">
             <section aria-labelledby="workspace-destinations-title">
                 <div className="mb-4 flex items-end justify-between gap-4">
                     <div>
