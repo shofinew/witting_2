@@ -353,6 +353,7 @@ export function PublicPage({ currentUser, onLogout, homeEvents, now }) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [activeEventActionId, setActiveEventActionId] = useState(null);
     const [activeEventActionType, setActiveEventActionType] = useState(null);
+    const [openEventMenuId, setOpenEventMenuId] = useState(null);
 
     const location = useLocation();
     const creatorId = new URLSearchParams(location.search).get('creatorId');
@@ -389,6 +390,31 @@ export function PublicPage({ currentUser, onLogout, homeEvents, now }) {
             isMounted = false;
         };
     }, [currentUser?._id, location.search, refreshNonce]);
+
+    useEffect(() => {
+        if (!openEventMenuId) {
+            return undefined;
+        }
+
+        const closeMenuOnOutsideClick = (event) => {
+            if (!event.target.closest('[data-event-menu]')) {
+                setOpenEventMenuId(null);
+            }
+        };
+        const closeMenuOnEscape = (event) => {
+            if (event.key === 'Escape') {
+                setOpenEventMenuId(null);
+            }
+        };
+
+        document.addEventListener('pointerdown', closeMenuOnOutsideClick);
+        document.addEventListener('keydown', closeMenuOnEscape);
+
+        return () => {
+            document.removeEventListener('pointerdown', closeMenuOnOutsideClick);
+            document.removeEventListener('keydown', closeMenuOnEscape);
+        };
+    }, [openEventMenuId]);
 
     const closeModal = () => {
         setIsModalOpen(false);
@@ -659,10 +685,44 @@ export function PublicPage({ currentUser, onLogout, homeEvents, now }) {
                             return (
                                 <div
                                     key={event._id}
-                                    className="rounded-2xl border border-indigo-100 bg-white p-[10px] shadow-sm"
+                                    className={`relative rounded-2xl border border-indigo-100 bg-white p-[10px] shadow-sm ${isCreator ? 'pt-14' : ''}`}
                                 >
+                                    {isCreator && (
+                                        <div data-event-menu className="absolute right-3 top-3 z-10">
+                                            <button
+                                                type="button"
+                                                aria-label={`More actions for ${event.title}`}
+                                                aria-expanded={openEventMenuId === event._id}
+                                                onClick={() => setOpenEventMenuId((currentId) => (
+                                                    currentId === event._id ? null : event._id
+                                                ))}
+                                                className="flex h-9 w-9 items-center justify-center rounded-full text-xl font-bold leading-none text-slate-500 transition hover:bg-indigo-50 hover:text-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                                            >
+                                                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 fill-current">
+                                                    <circle cx="5" cy="12" r="1.8" />
+                                                    <circle cx="12" cy="12" r="1.8" />
+                                                    <circle cx="19" cy="12" r="1.8" />
+                                                </svg>
+                                            </button>
+                                            {openEventMenuId === event._id && (
+                                                <div className="absolute right-0 top-10 min-w-32 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setOpenEventMenuId(null);
+                                                            handleDeleteEvent(event._id);
+                                                        }}
+                                                        disabled={isDeleteLoading}
+                                                        className="w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-70"
+                                                    >
+                                                        {isDeleteLoading ? 'Deleting...' : 'Delete'}
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                    <div className="space-y-1">
+                                    <div className={`space-y-1 ${isCreator ? 'pr-10' : ''}`}>
                                         <p className="text-lg font-bold text-slate-900">{event.title}</p>
                                         <p className="text-base font-semibold text-slate-700">
                                             {event.description}
@@ -688,34 +748,24 @@ export function PublicPage({ currentUser, onLogout, homeEvents, now }) {
                                             <br />
                                             <span>End: {formatPublicEventDateTime(event.endDate || event.finishDate, event.endTime || event.finishTime)}</span>
                                         </div>
-                                        <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">
-                                            {event.likeCount || 0} liked it
+                                        <div className="flex items-stretch gap-2 sm:flex-col sm:gap-3">
+                                            <div className="min-w-0 flex-1 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-center text-sm font-semibold text-emerald-700">
+                                                {event.likeCount || 0} liked it
+                                            </div>
+                                            {canLike && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleLikeEvent(event._id)}
+                                                    disabled={isLikeLoading || event.likedByCurrentUser}
+                                                    className={`min-w-0 flex-1 whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${event.likedByCurrentUser
+                                                        ? 'bg-emerald-700 text-white'
+                                                        : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                                        }`}
+                                                >
+                                                    {isLikeLoading ? 'Saving...' : event.likedByCurrentUser ? 'LIKED' : 'I LIKE IT'}
+                                                </button>
+                                            )}
                                         </div>
-                                        {canLike && (
-                                            <button
-                                                type="button"
-                                                onClick={() => handleLikeEvent(event._id)}
-                                                disabled={isLikeLoading || event.likedByCurrentUser}
-                                                className={`rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-70 ${event.likedByCurrentUser
-                                                    ? 'bg-emerald-700 text-white'
-                                                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                                    }`}
-                                            >
-                                                {isLikeLoading ? 'Saving...' : event.likedByCurrentUser ? 'LIKED' : 'I LIKE IT'}
-                                            </button>
-                                        )}
-                                        {isCreator && (
-                                            <button
-                                                type="button"
-                                                onClick={() => handleDeleteEvent(event._id)}
-                                                disabled={isDeleteLoading}
-                                                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
-                                            >
-                                                {isDeleteLoading
-                                                    ? 'Deleting...'
-                                                    : 'Delete'}
-                                            </button>
-                                        )}
                                     </div>
                                 </div>
                             </div>
