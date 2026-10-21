@@ -212,7 +212,7 @@ export function SettingPage({
     };
 
     return (
-        <div className="w-full rounded-3xl border border-indigo-100 bg-white/95 p-4 shadow-2xl backdrop-blur-sm sm:p-8">
+        <div className="w-full rounded-[10px] border border-indigo-100 bg-white/95 p-[5px] shadow-2xl backdrop-blur-sm">
             <div className="mb-6">
                 <p className="text-sm font-semibold text-fuchsia-500">Setting</p>
                 <h2 className="mt-2 text-2xl font-black text-slate-800 sm:text-3xl">Account settings</h2>
@@ -221,7 +221,7 @@ export function SettingPage({
                 </p>
             </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-100 p-2">
+            <div className="rounded-[10px] border border-slate-200 bg-slate-100 p-2">
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     <button
                         type="button"
@@ -267,26 +267,26 @@ export function SettingPage({
             </div>
 
             {activeTab === 'audit' && (
-                <div className="mt-6 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm">
+                <div className="mt-6 rounded-[10px] border border-slate-200 bg-white/80 p-6 shadow-sm">
                     <div className="mb-4">
                         <h3 className="text-lg font-semibold text-slate-800">Audit Log</h3>
                         <p className="mt-1 text-sm text-slate-500">Recent login and password reset activity for this account.</p>
                     </div>
 
                     {auditLoading && (
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        <div className="rounded-[10px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                             Loading audit logs...
                         </div>
                     )}
 
                     {!auditLoading && auditError && (
-                        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        <div className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                             {auditError}
                         </div>
                     )}
 
                     {!auditLoading && !auditError && auditLogs.length === 0 && (
-                        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                        <div className="rounded-[10px] border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
                             No audit log entries found.
                         </div>
                     )}
@@ -294,7 +294,7 @@ export function SettingPage({
                     {!auditLoading && !auditError && auditLogs.length > 0 && (
                         <div className="space-y-3">
                             {auditLogs.map((log) => (
-                                <div key={log._id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                <div key={log._id} className="rounded-[10px] border border-slate-200 bg-slate-50 p-4">
                                     <div className="flex flex-wrap items-center justify-between gap-2">
                                         <span className={`rounded-full px-3 py-1 text-xs font-semibold ${
                                             log.status === 'success'
@@ -327,7 +327,7 @@ export function SettingPage({
             )}
 
             {activeTab === 'blocked' && (
-                <div className="mt-6 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm">
+                <div className="mt-6 rounded-[10px] border border-slate-200 bg-white/80 p-6 shadow-sm">
                     <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                             <h3 className="text-lg font-semibold text-slate-800">Blocked Users</h3>
@@ -339,25 +339,25 @@ export function SettingPage({
                     </div>
 
                     {blockedMessage && (
-                        <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                        <div className="mb-4 rounded-[10px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
                             {blockedMessage}
                         </div>
                     )}
 
                     {blockedLoading && (
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        <div className="rounded-[10px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                             Loading blocked users...
                         </div>
                     )}
 
                     {!blockedLoading && blockedError && (
-                        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        <div className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                             {blockedError}
                         </div>
                     )}
 
                     {!blockedLoading && !blockedError && blockedUsers.length === 0 && (
-                        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                        <div className="rounded-[10px] border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
                             No blocked users found.
                         </div>
                     )}
@@ -368,7 +368,7 @@ export function SettingPage({
                                 const blockedUser = entry.user;
 
                                 return (
-                                    <div key={entry._id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                    <div key={entry._id} className="rounded-[10px] border border-slate-200 bg-slate-50 p-4">
                                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                             <div>
                                                 <p className="text-base font-semibold text-slate-900">{blockedUser.name}</p>
@@ -408,7 +408,7 @@ export function SettingPage({
             )}
 
             {activeTab === 'archive' && (
-                <div className="mt-6 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm">
+                <div className="mt-6 rounded-[10px] border border-slate-200 bg-white/80 p-6 shadow-sm">
                     <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <h3 className="text-lg font-semibold text-slate-800">Event Archive</h3>
@@ -469,25 +469,25 @@ export function SettingPage({
                     </div>
 
                     {archiveLoading && (
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        <div className="rounded-[10px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                             Loading archived events...
                         </div>
                     )}
 
                     {!archiveLoading && archiveError && (
-                        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        <div className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                             {archiveError}
                         </div>
                     )}
 
                     {!archiveLoading && !archiveError && archivedEvents.length === 0 && (
-                        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                        <div className="rounded-[10px] border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
                             No archived events found.
                         </div>
                     )}
 
                     {!archiveLoading && !archiveError && archivedEvents.length > 0 && filteredArchivedEvents.length === 0 && (
-                        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                        <div className="rounded-[10px] border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
                             No archived events match this filter.
                         </div>
                     )}
@@ -499,7 +499,7 @@ export function SettingPage({
                                 const archivedLabel = formatEventTimestamp(event.archivedAt);
 
                                 return (
-                                    <div key={event._id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                    <div key={event._id} className="rounded-[10px] border border-slate-200 bg-slate-50 p-4">
                                         <div className="flex flex-wrap items-center justify-between gap-2">
                                             <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700">
                                                 Archived
@@ -511,7 +511,7 @@ export function SettingPage({
                                         </div>
                                         <p className="mt-3 text-base font-semibold text-slate-800">{event.description}</p>
                                         {event.message && (
-                                            <div className="mt-3 rounded-xl border border-indigo-100 bg-white p-3 text-sm text-slate-700">
+                                            <div className="mt-3 rounded-[10px] border border-indigo-100 bg-white p-3 text-sm text-slate-700">
                                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                                     <p className="text-xs font-bold text-indigo-500">Message</p>
                                                 </div>
@@ -533,7 +533,7 @@ export function SettingPage({
             )}
 
             {activeTab === 'expired' && (
-                <div className="mt-6 rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm">
+                <div className="mt-6 rounded-[10px] border border-slate-200 bg-white/80 p-6 shadow-sm">
                     <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div>
                             <h3 className="text-lg font-semibold text-slate-800">Expired Events</h3>
@@ -594,25 +594,25 @@ export function SettingPage({
                     </div>
 
                     {expiredLoading && (
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        <div className="rounded-[10px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                             Loading expired events...
                         </div>
                     )}
 
                     {!expiredLoading && expiredError && (
-                        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        <div className="rounded-[10px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                             {expiredError}
                         </div>
                     )}
 
                     {!expiredLoading && !expiredError && expiredEvents.length === 0 && (
-                        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                        <div className="rounded-[10px] border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
                             No expired events found.
                         </div>
                     )}
 
                     {!expiredLoading && !expiredError && expiredEvents.length > 0 && filteredExpiredEvents.length === 0 && (
-                        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                        <div className="rounded-[10px] border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
                             No expired events match this filter.
                         </div>
                     )}
@@ -624,7 +624,7 @@ export function SettingPage({
                                 const expiredLabel = formatEventTimestamp(event.date);
 
                                 return (
-                                    <div key={event._id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                    <div key={event._id} className="rounded-[10px] border border-slate-200 bg-slate-50 p-4">
                                         <div className="flex flex-wrap items-center justify-between gap-2">
                                             <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold text-rose-700">
                                                 {event.status || 'Expired'}
@@ -636,7 +636,7 @@ export function SettingPage({
                                         </div>
                                         <p className="mt-3 text-base font-semibold text-slate-800">{event.description}</p>
                                         {event.message && (
-                                            <div className="mt-3 rounded-xl border border-indigo-100 bg-white p-3 text-sm text-slate-700">
+                                            <div className="mt-3 rounded-[10px] border border-indigo-100 bg-white p-3 text-sm text-slate-700">
                                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                                     <p className="text-xs font-bold text-indigo-500">Message</p>
                                                 </div>

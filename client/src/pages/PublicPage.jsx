@@ -618,7 +618,7 @@ export function PublicPage({ currentUser, onLogout, homeEvents, now }) {
 
     return (
         <>
-            <div className="w-full rounded-3xl border border-indigo-100 bg-white/95 p-[10px] shadow-2xl backdrop-blur-sm">
+            <div className="w-full rounded-[10px] border border-indigo-100 bg-white/95 p-[10px] shadow-2xl backdrop-blur-sm">
                 {isMyPublicView && (
                     <div className="mb-6">
                         <ProfileHeader currentUser={currentUser} />
@@ -667,11 +667,11 @@ export function PublicPage({ currentUser, onLogout, homeEvents, now }) {
                 )}
 
                 {isLoading ? (
-                    <div className="rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/50 px-6 py-10 text-center text-slate-600">
+                    <div className="rounded-[10px] border border-dashed border-indigo-200 bg-indigo-50/50 px-6 py-10 text-center text-slate-600">
                         Loading public events...
                     </div>
                 ) : events.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/50 px-6 py-10 text-center text-slate-600">
+                    <div className="rounded-[10px] border border-dashed border-indigo-200 bg-indigo-50/50 px-6 py-10 text-center text-slate-600">
                         No public events yet.
                     </div>
                 ) : (
@@ -685,7 +685,7 @@ export function PublicPage({ currentUser, onLogout, homeEvents, now }) {
                             return (
                                 <div
                                     key={event._id}
-                                    className={`relative rounded-2xl border border-indigo-100 bg-white p-[10px] shadow-sm ${isCreator ? 'pt-14' : ''}`}
+                                    className={`relative rounded-[10px] border border-indigo-100 bg-white p-[10px] shadow-sm ${isCreator ? 'pt-14' : ''}`}
                                 >
                                     {isCreator && (
                                         <div data-event-menu className="absolute right-3 top-3 z-10">

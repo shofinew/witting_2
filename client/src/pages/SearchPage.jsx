@@ -16,7 +16,7 @@ export function SearchPage({
     const isValidUniqueId = /^[A-Za-z]{2}\d{10}$/.test(searchInput.trim());
 
     return (
-        <div className="w-full rounded-3xl border border-indigo-100 bg-white/95 p-4 shadow-2xl backdrop-blur-sm sm:p-8">
+        <div className="w-full rounded-[10px] border border-indigo-100 bg-white/95 p-4 shadow-2xl backdrop-blur-sm sm:p-8">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
                 <div>
                     <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-fuchsia-600 sm:text-3xl">Search Users</h2>
@@ -66,7 +66,7 @@ export function SearchPage({
             ) : filteredUsers.length === 0 ? (
                 <p className="text-gray-600">No matching users found.</p>
             ) : (
-                <div className="overflow-x-auto rounded-2xl border border-indigo-100">
+                <div className="overflow-x-auto rounded-[10px] border border-indigo-100">
                     <table className="w-full min-w-[560px] text-left border-collapse">
                         <thead>
                             <tr className="bg-indigo-50 text-indigo-700">
