@@ -592,7 +592,7 @@ export function PublicPage({ currentUser, onLogout, homeEvents, now }) {
 
     return (
         <>
-            <div className={`w-full rounded-3xl border border-indigo-100 bg-white/95 shadow-2xl backdrop-blur-sm ${isMyPublicView ? 'p-4 sm:p-6' : 'p-8'}`}>
+            <div className="w-full rounded-3xl border border-indigo-100 bg-white/95 p-[10px] shadow-2xl backdrop-blur-sm">
                 {isMyPublicView && (
                     <div className="mb-6">
                         <ProfileHeader currentUser={currentUser} />
@@ -659,7 +659,7 @@ export function PublicPage({ currentUser, onLogout, homeEvents, now }) {
                             return (
                                 <div
                                     key={event._id}
-                                    className="rounded-2xl border border-indigo-100 bg-white p-5 shadow-sm"
+                                    className="rounded-2xl border border-indigo-100 bg-white p-[10px] shadow-sm"
                                 >
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                     <div className="space-y-1">
