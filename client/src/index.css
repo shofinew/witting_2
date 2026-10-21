@@ -27,16 +27,17 @@ body {
     width: clamp(4.5rem, 10vw, 7.5rem);
     aspect-ratio: 1;
     border-radius: 50%;
-    background: radial-gradient(circle at 34% 28%, #fffef1 0 28%, #fff6bd 58%, #f8d978 100%);
-    box-shadow: 0 0 1.75rem 0.35rem rgb(255 247 189 / 55%), inset -0.5rem -0.65rem 1rem rgb(197 145 48 / 22%);
+    background: radial-gradient(circle at 34% 28%, #ffffff 0 28%, #d7d7d7 58%, #777777 100%);
+    box-shadow: 0 0 1.75rem 0.35rem rgb(255 255 255 / 45%), inset -0.5rem -0.65rem 1rem rgb(0 0 0 / 25%);
+    filter: grayscale(1);
     opacity: 0.95;
 }
 
 .sky-moon-crater {
     position: absolute;
     border-radius: 50%;
-    background: rgb(205 163 72 / 18%);
-    box-shadow: inset 0.15rem 0.15rem 0.2rem rgb(173 125 37 / 12%);
+    background: rgb(30 30 30 / 22%);
+    box-shadow: inset 0.15rem 0.15rem 0.2rem rgb(0 0 0 / 18%);
 }
 
 .sky-moon-crater-one { width: 18%; height: 18%; top: 22%; left: 23%; }
@@ -51,7 +52,7 @@ body {
     height: 3.2rem;
     opacity: 0.52;
     filter: drop-shadow(0 0.4rem 0.35rem rgb(28 77 128 / 12%));
-    animation: sky-cloud-drift 34s linear infinite alternate;
+    animation: sky-cloud-drift 34s linear infinite;
 }
 
 .sky-cloud span {
@@ -78,12 +79,11 @@ body {
     transform: scale(0.72);
     opacity: 0.32;
     animation-duration: 46s;
-    animation-direction: alternate-reverse;
 }
 
 @keyframes sky-cloud-drift {
-    from { translate: -1rem 0; }
-    to { translate: min(24vw, 18rem) 0.8rem; }
+    from { translate: 100vw 0; }
+    to { translate: -24rem 0.8rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
