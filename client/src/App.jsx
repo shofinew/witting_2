@@ -966,7 +966,7 @@ function App() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-fuchsia-200 via-sky-100 to-cyan-100 px-2 pb-4 pt-1 sm:px-4 sm:pt-2">
+        <div className="min-h-screen bg-gradient-to-br from-[#0084ff] via-sky-100 to-cyan-100 px-2 pb-4 pt-1 sm:px-4 sm:pt-2">
             <div className="mx-auto w-full max-w-5xl">
                 <Header
                     activePage={activePage}
