@@ -241,7 +241,7 @@ export function ProfilePage({
                 />
 
                 {activeTab === 'profile' && (
-                    <div className="mt-4 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                    <div className="mt-4 -mx-[11px] rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:-mx-[19px] sm:p-5">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <p className="text-sm font-semibold text-fuchsia-500">Profile Information</p>
