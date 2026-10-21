@@ -117,7 +117,7 @@ export function LandingPage({ currentUser, eventCounts = {} }) {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-[repeat(4,150px)] lg:justify-center">
                     {destinationCards.map((card) => {
                         const count = eventCounts[card.id];
                         const hasCount = Number.isFinite(count) && ['home', 'total-events', 'stage1', 'stage2', 'stage3'].includes(card.id);
@@ -127,7 +127,7 @@ export function LandingPage({ currentUser, eventCounts = {} }) {
                                 key={card.id}
                                 type="button"
                                 onClick={() => openDestination(card.id)}
-                                className="group relative flex h-[120px] w-full min-h-0 flex-col justify-between overflow-hidden rounded-[10px] border border-slate-200 bg-white p-3 text-left shadow-sm transition duration-200 hover:-translate-y-1 hover:border-indigo-200 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-offset-4"
+                                className="group relative flex h-[120px] w-full min-h-0 flex-col justify-between overflow-hidden rounded-[10px] border border-slate-200 bg-white p-3 text-left shadow-sm transition duration-200 hover:-translate-y-1 hover:border-indigo-200 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-offset-4 lg:w-[150px]"
                             >
                                 <div className="flex h-9 w-9 self-center items-center justify-center rounded-xl bg-transparent text-[23px] font-black text-[#0084ff]" aria-hidden="true">
                                     {card.icon}
