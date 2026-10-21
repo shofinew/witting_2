@@ -60,7 +60,7 @@ export function EventCard({
     const updatedAtLabel = event.updatedAt ? new Date(event.updatedAt).toLocaleString() : 'Not available';
 
     return (
-        <div className={`rounded-xl p-3 shadow-sm sm:p-4 ${cardHighlightClass}`}>
+        <div className={`rounded-[10px] p-3 shadow-sm sm:p-4 ${cardHighlightClass}`}>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-1.5">

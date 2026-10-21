@@ -29,7 +29,7 @@ export function EventSection({
     const isPublished = status === 'published';
 
     return (
-        <div className="w-full rounded-3xl border border-indigo-100 bg-white/95 p-[5px] shadow-2xl backdrop-blur-sm">
+        <div className="w-full rounded-[10px] border border-indigo-100 bg-white/95 p-[5px] shadow-2xl backdrop-blur-sm">
             <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-fuchsia-600">{title}</h2>

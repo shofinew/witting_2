@@ -75,7 +75,7 @@ export function StagePage({
                 || (stage === 'stage3' && activeTab === 'going')
             }
             headerContent={
-                <div className="grid grid-cols-2 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+                <div className="grid grid-cols-2 overflow-hidden rounded-[10px] border border-slate-200 bg-slate-100">
                     <button
                         type="button"
                         onClick={() => setActiveTab('coming')}
