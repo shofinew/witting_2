@@ -84,7 +84,7 @@ export function Header({
     return (
         <div className="sticky top-0 z-50">
             <div
-                className="mb-1 flex items-center justify-between gap-2 rounded-3xl px-2 py-2 text-white shadow-2xl sm:px-3 md:px-4"
+                className="mb-1 flex items-center justify-between gap-2 rounded-[10px] px-2 py-2 text-white shadow-2xl sm:px-3 md:px-4"
                 style={{ backgroundColor: '#161080' }}
             >
                 <div className="flex min-w-0 items-center gap-1.5 sm:w-auto sm:gap-2">
@@ -190,7 +190,7 @@ export function Header({
                 </div>
             </div>
 
-            <div className="mb-1 hidden rounded-[24px] border border-slate-200/80 bg-white/90 px-1.5 py-1 shadow-[0_12px_40px_rgba(15,23,42,0.10)] backdrop-blur-xl sm:block sm:px-2 sm:py-1">
+            <div className="mb-1 hidden rounded-[10px] border border-slate-200/80 bg-white/90 px-1.5 py-1 shadow-[0_12px_40px_rgba(15,23,42,0.10)] backdrop-blur-xl sm:block sm:px-2 sm:py-1">
                 <div className="flex flex-nowrap items-center justify-start gap-1 overflow-x-auto overscroll-x-contain pb-0.5 [scrollbar-width:thin] sm:flex-wrap sm:justify-center sm:overflow-visible sm:pb-0">
                     {renderNavItems()}
                 </div>

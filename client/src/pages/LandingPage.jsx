@@ -108,7 +108,7 @@ export function LandingPage({ currentUser, eventCounts = {} }) {
     };
 
     return (
-        <main className="mt-2 overflow-hidden rounded-[2rem] border border-white/70 bg-white/90 p-5 shadow-2xl backdrop-blur-xl sm:p-8">
+        <main className="mt-2 overflow-hidden rounded-[10px] border border-white/70 bg-white/90 p-[10px] shadow-2xl backdrop-blur-xl">
             <section aria-labelledby="workspace-destinations-title">
                 <div className="mb-4 flex items-end justify-between gap-4">
                     <div>
@@ -117,7 +117,7 @@ export function LandingPage({ currentUser, eventCounts = {} }) {
                     </div>
                 </div>
 
-                <div className="flex flex-wrap justify-center gap-4">
+                <div className="flex flex-wrap content-start items-start justify-center gap-4">
                     {destinationCards.map((card) => {
                         const count = eventCounts[card.id];
                         const hasCount = Number.isFinite(count) && ['home', 'total-events', 'stage1', 'stage2', 'stage3'].includes(card.id);

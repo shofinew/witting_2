@@ -286,6 +286,12 @@ export function ProfilePage({
                                         <p className="mt-1 text-base font-bold text-slate-900">{currentUser.name}</p>
                                     </div>
                                     <div>
+                                        <p className="text-sm font-medium text-slate-500">Email</p>
+                                        <p className="mt-1 break-words text-base font-bold text-slate-900" dir="ltr">
+                                            {currentUser.email || 'Not available'}
+                                        </p>
+                                    </div>
+                                    <div>
                                         <p className="text-sm font-medium text-slate-500">Unique ID</p>
                                         <p className="mt-1 text-base font-bold text-slate-900" dir="ltr">{uniqueIdLabel}</p>
                                     </div>
