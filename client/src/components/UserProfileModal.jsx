@@ -33,6 +33,8 @@ const formatAvailabilityDate = (value) => {
         : date.toLocaleDateString([], { dateStyle: 'medium' });
 };
 
+const WEEKDAY_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
 export function UserProfileModal({ user, currentUser, onClose, onUserChange, onCurrentUserUpdate }) {
     const [activeSection, setActiveSection] = useState('profile');
     const [userNotices, setUserNotices] = useState([]);
@@ -77,6 +79,9 @@ export function UserProfileModal({ user, currentUser, onClose, onUserChange, onC
         ? user.availableDates
         : (user.availableDate ? [user.availableDate] : []);
     const availabilityDates = [...new Set(savedAvailabilityDates.map(formatAvailabilityDate).filter(Boolean))];
+    const dayOffWeekdays = [...new Set((Array.isArray(user.dayOffWeekdays) ? user.dayOffWeekdays : []).map(Number))]
+        .filter((weekday) => Number.isInteger(weekday) && weekday >= 0 && weekday <= 6)
+        .sort((first, second) => first - second);
 
     useEffect(() => {
         let isMounted = true;
@@ -224,7 +229,7 @@ export function UserProfileModal({ user, currentUser, onClose, onUserChange, onC
                                 {initials || 'U'}
                             </div>
                             <div className="min-w-0">
-                                <p className="text-xs font-bold uppercase tracking-[0.16em] text-indigo-100">User Profile</p>
+                                <p className="text-xs font-bold uppercase text-indigo-100">User Profile</p>
                                 <h3 id="user-profile-modal-title" className="mt-0.5 break-words text-xl font-black leading-tight text-white sm:text-2xl">
                                     {user.name}
                                 </h3>
@@ -392,6 +397,11 @@ export function UserProfileModal({ user, currentUser, onClose, onUserChange, onC
                                 <p className="mt-2 text-xs text-slate-600">No custom dates selected.</p>
                             )
                         )}
+                        <p className="mt-2 text-xs font-semibold text-red-600">
+                            Day off: {user.dayOffEnabled && dayOffWeekdays.length > 0
+                                ? `Every ${dayOffWeekdays.map((weekday) => WEEKDAY_LABELS[weekday]).join(', ')}`
+                                : 'Not set'}
+                        </p>
                     </div>
 
                     {canViewEventHistory && (

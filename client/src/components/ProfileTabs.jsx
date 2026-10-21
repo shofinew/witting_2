@@ -115,6 +115,16 @@ const formatDateInput = (value) => {
 
 const getTodayInputDate = () => formatDateInput(new Date());
 
+const WEEKDAYS = [
+    { value: 0, label: 'Sunday' },
+    { value: 1, label: 'Monday' },
+    { value: 2, label: 'Tuesday' },
+    { value: 3, label: 'Wednesday' },
+    { value: 4, label: 'Thursday' },
+    { value: 5, label: 'Friday' },
+    { value: 6, label: 'Saturday' },
+];
+
 const getAvailableDateInputs = (user) => {
     const savedDates = Array.isArray(user?.availableDates) && user.availableDates.length > 0
         ? user.availableDates
@@ -129,6 +139,10 @@ const formatAvailableDate = (availabilityType, dateValues) => {
     return `Available on ${dateValues.length} selected date${dateValues.length === 1 ? '' : 's'}.`;
 };
 
+const getDayOffWeekdays = (user) => [...new Set((Array.isArray(user?.dayOffWeekdays) ? user.dayOffWeekdays : []).map(Number))]
+    .filter((weekday) => Number.isInteger(weekday) && weekday >= 0 && weekday <= 6)
+    .sort((first, second) => first - second);
+
 export function TimeSummaryDay({ currentUser, events, date, onRefresh, isRefreshing, onUserUpdate }) {
     const eventRanges = getBusyRanges(events, date);
     const archivedRanges = eventRanges.filter((range) => range.isArchived);
@@ -139,6 +153,8 @@ export function TimeSummaryDay({ currentUser, events, date, onRefresh, isRefresh
     const [availabilityType, setAvailabilityType] = useState(currentUser?.availabilityType || 'everyday');
     const [availableDate, setAvailableDate] = useState('');
     const [availableDates, setAvailableDates] = useState(() => getAvailableDateInputs(currentUser));
+    const [dayOffEnabled, setDayOffEnabled] = useState(Boolean(currentUser?.dayOffEnabled) && currentUser?.availabilityType === 'custom');
+    const [dayOffWeekdays, setDayOffWeekdays] = useState(() => getDayOffWeekdays(currentUser));
     const [isSubmittingAvailability, setIsSubmittingAvailability] = useState(false);
     const [availabilityError, setAvailabilityError] = useState('');
     const [availabilitySuccess, setAvailabilitySuccess] = useState('');
@@ -147,7 +163,9 @@ export function TimeSummaryDay({ currentUser, events, date, onRefresh, isRefresh
         setAvailabilityType(currentUser?.availabilityType || 'everyday');
         setAvailableDate('');
         setAvailableDates(getAvailableDateInputs(currentUser));
-    }, [currentUser?.availabilityType, currentUser?.availableDate, currentUser?.availableDates]);
+        setDayOffEnabled(Boolean(currentUser?.dayOffEnabled) && currentUser?.availabilityType === 'custom');
+        setDayOffWeekdays(getDayOffWeekdays(currentUser));
+    }, [currentUser?.availabilityType, currentUser?.availableDate, currentUser?.availableDates, currentUser?.dayOffEnabled, currentUser?.dayOffWeekdays]);
 
     const submitAvailability = async () => {
         setAvailabilityError('');
@@ -155,6 +173,11 @@ export function TimeSummaryDay({ currentUser, events, date, onRefresh, isRefresh
 
         if (availabilityType === 'custom' && availableDates.length === 0) {
             setAvailabilityError('Please choose at least one custom date.');
+            return;
+        }
+
+        if (availabilityType === 'custom' && dayOffEnabled && dayOffWeekdays.length === 0) {
+            setAvailabilityError('Please choose at least one day off.');
             return;
         }
 
@@ -168,10 +191,13 @@ export function TimeSummaryDay({ currentUser, events, date, onRefresh, isRefresh
 
         setIsSubmittingAvailability(true);
         try {
+            const isCustomAvailability = availabilityType === 'custom';
             const response = await authAPI.updateProfile(currentUser._id, {
                 availabilityType,
-                availableDate: selectedDates[0] ? selectedDates[0].toISOString() : null,
-                availableDates: selectedDates.map((date) => date.toISOString()),
+                availableDate: isCustomAvailability && selectedDates[0] ? selectedDates[0].toISOString() : null,
+                availableDates: isCustomAvailability ? selectedDates.map((date) => date.toISOString()) : [],
+                dayOffEnabled: isCustomAvailability && dayOffEnabled,
+                dayOffWeekdays: isCustomAvailability ? dayOffWeekdays : [],
             });
 
             if (!response?.user) {
@@ -179,7 +205,7 @@ export function TimeSummaryDay({ currentUser, events, date, onRefresh, isRefresh
             }
 
             onUserUpdate?.(response.user);
-            setAvailabilitySuccess('Available date saved.');
+            setAvailabilitySuccess('Availability saved.');
         } catch (error) {
             setAvailabilityError(error instanceof Error ? error.message : 'Failed to save available date.');
         } finally {
@@ -223,7 +249,7 @@ export function TimeSummaryDay({ currentUser, events, date, onRefresh, isRefresh
                 <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                         <p className="text-sm font-bold text-indigo-900">Available Date</p>
-                        <p className="mt-1 text-xs text-indigo-700">Choose whether you are available every day or on one custom date.</p>
+                        <p className="mt-1 text-xs text-indigo-700">Choose your available dates, then mark recurring days off.</p>
                     </div>
                     <div className="flex w-full shrink-0 rounded-full border border-indigo-200 bg-white/80 p-1 shadow-sm sm:w-auto" role="group" aria-label="Availability type">
                         {[
@@ -234,7 +260,11 @@ export function TimeSummaryDay({ currentUser, events, date, onRefresh, isRefresh
                                 key={option.value}
                                 type="button"
                                 onClick={() => {
-                                    setAvailabilityType(option.value);
+                                    const nextAvailabilityType = option.value;
+                                    setAvailabilityType(nextAvailabilityType);
+                                    if (nextAvailabilityType === 'everyday') {
+                                        setDayOffEnabled(false);
+                                    }
                                     setAvailabilityError('');
                                     setAvailabilitySuccess('');
                                 }}
@@ -249,6 +279,57 @@ export function TimeSummaryDay({ currentUser, events, date, onRefresh, isRefresh
                         ))}
                     </div>
                 </div>
+                <fieldset
+                    disabled={availabilityType !== 'custom'}
+                    className={`mt-4 border-t border-indigo-200 pt-3 ${availabilityType !== 'custom' ? 'opacity-60' : ''}`}
+                >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <p className="text-xs font-bold uppercase tracking-wide text-indigo-900">Day off</p>
+                            <p className="mt-1 text-xs text-indigo-700">Turn this on to block event requests on selected weekdays.</p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={dayOffEnabled}
+                            onClick={() => {
+                                setDayOffEnabled((enabled) => !enabled);
+                                setAvailabilityError('');
+                                setAvailabilitySuccess('');
+                            }}
+                            className={`relative inline-flex h-8 w-16 items-center rounded-full px-1 text-xs font-bold transition disabled:cursor-not-allowed ${dayOffEnabled ? 'bg-indigo-600 text-white' : 'bg-slate-300 text-slate-700'}`}
+                        >
+                            <span className={`inline-flex h-6 w-6 transform items-center justify-center rounded-full bg-white text-[10px] shadow transition ${dayOffEnabled ? 'translate-x-8' : 'translate-x-0'}`}>
+                                {dayOffEnabled ? 'On' : 'Off'}
+                            </span>
+                        </button>
+                    </div>
+                    <fieldset disabled={!dayOffEnabled} className="mt-3">
+                        <legend className="text-xs font-semibold text-slate-700">Every</legend>
+                        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                            {WEEKDAYS.map((weekday) => {
+                                const isSelected = dayOffWeekdays.includes(weekday.value);
+                                return (
+                                    <button
+                                        key={weekday.value}
+                                        type="button"
+                                        aria-pressed={isSelected}
+                                        onClick={() => {
+                                            setDayOffWeekdays((previous) => isSelected
+                                                ? previous.filter((value) => value !== weekday.value)
+                                                : [...previous, weekday.value].sort());
+                                            setAvailabilityError('');
+                                            setAvailabilitySuccess('');
+                                        }}
+                                        className={`rounded-lg border px-2 py-2 text-xs font-semibold transition ${isSelected ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-indigo-200 bg-white text-slate-700 hover:border-indigo-400 hover:bg-indigo-50'} disabled:cursor-not-allowed disabled:opacity-50`}
+                                    >
+                                        {weekday.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </fieldset>
+                </fieldset>
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
                     <label className="flex-1 text-xs font-semibold text-slate-700">
                         Date

@@ -69,6 +69,17 @@ const userSchema = new mongoose.Schema({
         enum: ['everyday', 'custom'],
         default: 'everyday',
     },
+    dayOffEnabled: {
+        type: Boolean,
+        default: false,
+    },
+    dayOffWeekdays: {
+        type: [{
+            type: Number,
+            enum: [0, 1, 2, 3, 4, 5, 6],
+        }],
+        default: [],
+    },
     gender: {
         type: String,
         enum: ['male', 'female', 'others'],

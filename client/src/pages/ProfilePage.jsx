@@ -209,7 +209,7 @@ export function ProfilePage({
             : 'bg-red-500';
 
     return (
-        <div className="w-full rounded-3xl border border-indigo-100 bg-white/95 p-4 shadow-2xl backdrop-blur-sm sm:p-6">
+        <div className="w-full rounded-[10px] border border-indigo-100 bg-white/95 p-4 shadow-2xl backdrop-blur-sm sm:p-6">
             <ProfileHeader currentUser={currentUser} />
 
             {updateError && (

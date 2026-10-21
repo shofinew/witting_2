@@ -12,6 +12,89 @@ body {
     background: #e0f2fe;
 }
 
+.sky-decoration {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.sky-moon {
+    position: absolute;
+    top: clamp(1.25rem, 5vw, 3.5rem);
+    left: clamp(0.25rem, 1.5vw, 1.25rem);
+    width: clamp(4.5rem, 10vw, 7.5rem);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 28%, #fffef1 0 28%, #fff6bd 58%, #f8d978 100%);
+    box-shadow: 0 0 1.75rem 0.35rem rgb(255 247 189 / 55%), inset -0.5rem -0.65rem 1rem rgb(197 145 48 / 22%);
+    opacity: 0.95;
+}
+
+.sky-moon-crater {
+    position: absolute;
+    border-radius: 50%;
+    background: rgb(205 163 72 / 18%);
+    box-shadow: inset 0.15rem 0.15rem 0.2rem rgb(173 125 37 / 12%);
+}
+
+.sky-moon-crater-one { width: 18%; height: 18%; top: 22%; left: 23%; }
+.sky-moon-crater-two { width: 25%; height: 25%; top: 56%; left: 55%; }
+.sky-moon-crater-three { width: 12%; height: 12%; top: 63%; left: 27%; }
+
+.sky-cloud {
+    position: absolute;
+    display: flex;
+    align-items: flex-end;
+    width: 11rem;
+    height: 3.2rem;
+    opacity: 0.52;
+    filter: drop-shadow(0 0.4rem 0.35rem rgb(28 77 128 / 12%));
+    animation: sky-cloud-drift 34s linear infinite alternate;
+}
+
+.sky-cloud span {
+    display: block;
+    width: 5.5rem;
+    height: 2rem;
+    margin-left: -1.5rem;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgb(255 255 255 / 94%), rgb(218 237 249 / 82%));
+}
+
+.sky-cloud span:first-child { width: 4rem; height: 2.7rem; margin-left: 0; }
+.sky-cloud span:nth-child(2) { width: 5rem; height: 3.2rem; margin-left: -1.8rem; }
+.sky-cloud span:last-child { width: 4.5rem; height: 2.35rem; margin-left: -1.7rem; }
+
+.sky-cloud-one {
+    top: clamp(3.5rem, 8vw, 6.5rem);
+    left: clamp(6rem, 14vw, 13rem);
+}
+
+.sky-cloud-two {
+    top: clamp(7rem, 17vw, 12rem);
+    left: -8rem;
+    transform: scale(0.72);
+    opacity: 0.32;
+    animation-duration: 46s;
+    animation-direction: alternate-reverse;
+}
+
+@keyframes sky-cloud-drift {
+    from { translate: -1rem 0; }
+    to { translate: min(24vw, 18rem) 0.8rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sky-cloud { animation: none; }
+}
+
+body > #root > *:not(.sky-decoration) {
+    position: relative;
+    z-index: 1;
+}
+
 button,
 input,
 textarea,

@@ -18,7 +18,7 @@ export function MyTimePage({ currentUser, events, now, onRefresh, onUserUpdate, 
     };
 
     return (
-        <main className="mt-2 w-full rounded-3xl border border-indigo-100 bg-white/95 p-4 shadow-2xl backdrop-blur-sm sm:p-6">
+        <main className="mt-2 w-full rounded-[10px] border border-indigo-100 bg-white/95 p-4 shadow-2xl backdrop-blur-sm sm:p-6">
             <div className="mb-5">
                 <p className="text-sm font-bold uppercase tracking-[0.18em] text-indigo-600">My Time</p>
                 <h1 className="mt-1 text-2xl font-black text-slate-900 sm:text-3xl">Manage your time</h1>

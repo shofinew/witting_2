@@ -137,11 +137,22 @@ const eventService = {
         // Availability is part of the target user's scheduling preference. Keep
         // this check in the service so it also protects requests made outside
         // the search page or by a modified client.
+        const requestedDate = parseDateOnly(date);
+        const requestedDateKey = /^\d{4}-\d{2}-\d{2}$/.test(String(date).trim())
+            ? String(date).trim()
+            : (requestedDate ? requestedDate.toISOString().slice(0, 10) : '');
+        const requestedWeekday = requestedDateKey
+            ? new Date(`${requestedDateKey}T00:00:00Z`).getUTCDay()
+            : null;
+        const dayOffWeekdays = Array.isArray(target.dayOffWeekdays) ? target.dayOffWeekdays : [];
+
+        if (target.dayOffEnabled && requestedWeekday !== null && dayOffWeekdays.includes(requestedWeekday)) {
+            const error = new Error('The selected user takes this weekday off.');
+            error.statusCode = 400;
+            throw error;
+        }
+
         if (target.availabilityType === 'custom') {
-            const requestedDate = parseDateOnly(date);
-            const requestedDateKey = /^\d{4}-\d{2}-\d{2}$/.test(String(date).trim())
-                ? String(date).trim()
-                : (requestedDate ? requestedDate.toISOString().slice(0, 10) : '');
             const savedDates = Array.isArray(target.availableDates) && target.availableDates.length > 0
                 ? target.availableDates
                 : (target.availableDate ? [target.availableDate] : []);

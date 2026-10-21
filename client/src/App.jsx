@@ -17,6 +17,7 @@ import { TotalEventsPage } from './pages/TotalEventsPage';
 import { MyNoticePage } from './pages/MyNoticePage';
 import { LandingPage } from './pages/LandingPage';
 import { MyTimePage } from './pages/MyTimePage';
+import { SkyDecoration } from './components/SkyDecoration';
 import { PAGE_TO_STATUS } from './constants';
 import { authAPI, userAPI, eventAPI, notificationAPI } from './api';
 import { canManageUsers, getUserUniqueId, matchesUserUniqueId, normalizeUserUniqueId } from './utils/user';
@@ -75,8 +76,18 @@ const getDateInputValue = (value) => {
 };
 
 const isUserAvailableOnDate = (user, dateValue) => {
-    if (!dateValue || (user?.availabilityType || 'everyday') === 'everyday') {
-        return Boolean(dateValue);
+    if (!dateValue) {
+        return false;
+    }
+
+    const date = new Date(`${dateValue}T00:00:00`);
+    const dayOffWeekdays = Array.isArray(user?.dayOffWeekdays) ? user.dayOffWeekdays.map(Number) : [];
+    if (user?.dayOffEnabled && dayOffWeekdays.includes(date.getDay())) {
+        return false;
+    }
+
+    if ((user?.availabilityType || 'everyday') === 'everyday') {
+        return true;
     }
 
     const savedDates = Array.isArray(user?.availableDates) && user.availableDates.length > 0
@@ -925,48 +936,52 @@ function App() {
 
     if (!currentUser) {
         return (
-            <AuthPage
-                authView={authView}
-                setAuthView={setAuthView}
-                authError={authError}
-                authSuccess={authSuccess}
-                loginEmail={loginEmail}
-                setLoginEmail={setLoginEmail}
-                loginPassword={loginPassword}
-                setLoginPassword={setLoginPassword}
-                forgotEmail={forgotEmail}
-                setForgotEmail={setForgotEmail}
-                resetOtp={resetOtp}
-                setResetOtp={setResetOtp}
-                resetPassword={resetPassword}
-                setResetPassword={setResetPassword}
-                resetPasswordConfirm={resetPasswordConfirm}
-                setResetPasswordConfirm={setResetPasswordConfirm}
-                otpPreview={otpPreview}
-                hasRequestedOtp={hasRequestedOtp}
-                otpExpiresAt={otpExpiresAt}
-                registerName={registerName}
-                setRegisterName={setRegisterName}
-                registerEmail={registerEmail}
-                setRegisterEmail={setRegisterEmail}
-                registerPassword={registerPassword}
-                setRegisterPassword={setRegisterPassword}
-                registerPasswordConfirm={registerPasswordConfirm}
-                setRegisterPasswordConfirm={setRegisterPasswordConfirm}
-                isSubmitting={isSubmitting}
-                onRegister={handleRegister}
-                onLogin={handleLogin}
-                onRequestPasswordReset={handleRequestPasswordReset}
-                onResetPassword={handleResetPassword}
-                onClearPasswordResetState={clearPasswordResetState}
-                setAuthError={setAuthError}
-                setAuthSuccess={setAuthSuccess}
-            />
+            <>
+                <SkyDecoration />
+                <AuthPage
+                    authView={authView}
+                    setAuthView={setAuthView}
+                    authError={authError}
+                    authSuccess={authSuccess}
+                    loginEmail={loginEmail}
+                    setLoginEmail={setLoginEmail}
+                    loginPassword={loginPassword}
+                    setLoginPassword={setLoginPassword}
+                    forgotEmail={forgotEmail}
+                    setForgotEmail={setForgotEmail}
+                    resetOtp={resetOtp}
+                    setResetOtp={setResetOtp}
+                    resetPassword={resetPassword}
+                    setResetPassword={setResetPassword}
+                    resetPasswordConfirm={resetPasswordConfirm}
+                    setResetPasswordConfirm={setResetPasswordConfirm}
+                    otpPreview={otpPreview}
+                    hasRequestedOtp={hasRequestedOtp}
+                    otpExpiresAt={otpExpiresAt}
+                    registerName={registerName}
+                    setRegisterName={setRegisterName}
+                    registerEmail={registerEmail}
+                    setRegisterEmail={setRegisterEmail}
+                    registerPassword={registerPassword}
+                    setRegisterPassword={setRegisterPassword}
+                    registerPasswordConfirm={registerPasswordConfirm}
+                    setRegisterPasswordConfirm={setRegisterPasswordConfirm}
+                    isSubmitting={isSubmitting}
+                    onRegister={handleRegister}
+                    onLogin={handleLogin}
+                    onRequestPasswordReset={handleRequestPasswordReset}
+                    onResetPassword={handleResetPassword}
+                    onClearPasswordResetState={clearPasswordResetState}
+                    setAuthError={setAuthError}
+                    setAuthSuccess={setAuthSuccess}
+                />
+            </>
         );
     }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#0084ff] via-sky-100 to-cyan-100 px-2 pb-4 pt-1 sm:px-4 sm:pt-2">
+            <SkyDecoration />
             <div className="mx-auto w-full max-w-5xl">
                 <Header
                     activePage={activePage}

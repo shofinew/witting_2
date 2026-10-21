@@ -23,6 +23,8 @@ const buildSafeUser = (user, includeEmail = false) => ({
     availableDate: user.availableDate,
     availableDates: user.availableDates || [],
     availabilityType: user.availabilityType || 'everyday',
+    dayOffEnabled: Boolean(user.dayOffEnabled),
+    dayOffWeekdays: user.dayOffWeekdays || [],
     gender: user.gender,
     specialistAt: user.specialistAt,
     profession: user.profession,
@@ -488,7 +490,7 @@ const authService = {
     updateProfile: async (userId, updates) => {
         const { validateDateOfBirth } = require('../utils/validators');
         
-        const allowedFields = ['phone', 'country', 'dateOfBirth', 'availableDate', 'availableDates', 'availabilityType', 'gender', 'specialistAt', 'profession', 'chamber', 'timezone', 'designation', 'achievement'];
+        const allowedFields = ['phone', 'country', 'dateOfBirth', 'availableDate', 'availableDates', 'availabilityType', 'dayOffEnabled', 'dayOffWeekdays', 'gender', 'specialistAt', 'profession', 'chamber', 'timezone', 'designation', 'achievement'];
         const filteredUpdates = {};
 
         for (const field of allowedFields) {
@@ -497,6 +499,36 @@ const authService = {
                     ? updates[field].toUpperCase().trim()
                     : updates[field];
             }
+        }
+
+        if (filteredUpdates.dayOffEnabled !== undefined && typeof filteredUpdates.dayOffEnabled !== 'boolean') {
+            const error = new Error('Day-off status must be a boolean.');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        if (filteredUpdates.dayOffWeekdays !== undefined) {
+            if (!Array.isArray(filteredUpdates.dayOffWeekdays)) {
+                const error = new Error('Day-off weekdays must be an array.');
+                error.statusCode = 400;
+                throw error;
+            }
+
+            const normalizedWeekdays = [...new Set(filteredUpdates.dayOffWeekdays.map(Number))];
+            if (normalizedWeekdays.some((weekday) => !Number.isInteger(weekday) || weekday < 0 || weekday > 6)) {
+                const error = new Error('Day-off weekdays must contain values from 0 to 6.');
+                error.statusCode = 400;
+                throw error;
+            }
+
+            filteredUpdates.dayOffWeekdays = normalizedWeekdays;
+        }
+
+        if (filteredUpdates.dayOffEnabled === true
+            && (!Array.isArray(filteredUpdates.dayOffWeekdays) || filteredUpdates.dayOffWeekdays.length === 0)) {
+            const error = new Error('Choose at least one day off.');
+            error.statusCode = 400;
+            throw error;
         }
 
         if (filteredUpdates.dateOfBirth) {
